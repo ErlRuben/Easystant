@@ -345,51 +345,6 @@ function extractTaskInfo(text) {
             isWideScope: false
         };
     }
-    
-    // Expanded feature keyword mapping
-    const featureKeywords = {
-        decal: 'Decal System',
-        texture: 'Texture System',
-        customize: 'Customization System',
-        customization: 'Customization System',
-        save: 'Save System',
-        load: 'Loading System',
-        render: 'Rendering System',
-        crash: 'Stability',
-        freeze: 'Performance',
-        lag: 'Performance',
-        fps: 'Performance',
-        login: 'Authentication',
-        auth: 'Authentication',
-        payment: 'Payment System',
-        upload: 'Upload System',
-        download: 'Download System',
-        sound: 'Audio System',
-        audio: 'Audio System',
-        music: 'Audio System',
-        video: 'Video System',
-        image: 'Image System',
-        camera: 'Camera System',
-        location: 'Location Service',
-        gps: 'GPS System',
-        notification: 'Notification System',
-        message: 'Messaging System',
-        chat: 'Chat System',
-        search: 'Search System',
-        filter: 'Filter System',
-        sort: 'Sorting System',
-        export: 'Export System',
-        import: 'Import System',
-        sync: 'Sync System',
-        backup: 'Backup System',
-        database: 'Database System',
-        api: 'API System',
-        network: 'Network System',
-        wifi: 'WiFi Connection',
-        bluetooth: 'Bluetooth Connection',
-        server: 'Server',
-        cloud: 'Cloud Service'
-    };
 
     // Split into sentences
     const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
@@ -407,20 +362,11 @@ function extractTaskInfo(text) {
     
     let coreIssue = '';
     
-    // Step 1: Try to match exact feature keywords
-    for (const [keyword, featureName] of Object.entries(featureKeywords)) {
-        if (lower.includes(keyword)) {
-            coreIssue = featureName;
-            break;
-        }
-    }
-    
-    // Step 2: If no keyword matched, extract noun phrase from problem sentences
-    if (!coreIssue && problemSentences.length > 0) {
+    // Step 1: Extract noun phrase from problem sentences using intelligent patterns
+    if (problemSentences.length > 0) {
         const mainSentence = problemSentences[0];
         
-        // Try to extract the actual object/feature being discussed
-        // Pattern: "can't/cannot/doesn't... [article] [adjective] [NOUN/NOUN PHRASE]"
+        // Pattern-based extraction of the actual object/feature being discussed
         const patterns = [
             /(?:can't|cannot|doesn't|doesn't work|not working|issue with|problem with|broken)\s+(?:the\s+)?(?:my\s+)?(?:[a-z]+\s+)*([a-z]+(?:\s+[a-z]+)?)/i,
             /when\s+(?:i\s+)?([a-z]+(?:\s+[a-z]+)?)\s+(?:is|are|it)\s+(?:not|broken|fails|crashes)/i,
@@ -441,7 +387,7 @@ function extractTaskInfo(text) {
         }
     }
     
-    // Step 3: If still no match, extract any noun-like words from the problem context
+    // Step 2: If still no match, extract any noun-like words from the problem context
     if (!coreIssue && problemSentences.length > 0) {
         // Extract capitalized words or words that look like feature names
         const words = problemSentences[0].match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/);
@@ -450,7 +396,7 @@ function extractTaskInfo(text) {
         }
     }
     
-    // Step 4: Last resort - look for any significant words in first problem sentence
+    // Step 3: Last resort - look for any significant words in first problem sentence
     if (!coreIssue && problemSentences.length > 0) {
         const wordList = problemSentences[0]
             .replace(/(?:can't|cannot|doesn't|doesn't work|not working|issue|bug|broken|error)/gi, '')
@@ -684,33 +630,26 @@ function extractVersion(text) {
     return '';
 }
 
-// Extract device type from text
+// Extract device type from text - scalable pattern-based approach
 function extractDevice(text) {
     const lower = text.toLowerCase();
     
-    // Check for mobile platforms
-    if (lower.includes('iphone') || lower.includes('ipad') || lower.includes('ios') || lower.includes('apple')) {
-        return 'iOS';
-    }
+    // Scalable device patterns - easily extensible for new platforms
+    const devicePatterns = [
+        { name: 'iOS', keywords: ['iphone', 'ipad', 'ios', 'apple'] },
+        { name: 'Android', keywords: ['android', 'samsung', 'pixel', 'mobile'] },
+        { name: 'Windows', keywords: ['windows', 'pc', 'desktop', 'computer'] },
+        { name: 'macOS', keywords: ['mac', 'osx', 'macos'] },
+        { name: 'Linux', keywords: ['linux'] },
+        { name: 'Console', keywords: ['playstation', 'ps4', 'ps5', 'console'] },
+        { name: 'Web', keywords: ['browser', 'chrome', 'firefox', 'safari', 'edge', 'web'] }
+    ];
     
-    if (lower.includes('android') || lower.includes('samsung') || lower.includes('pixel') || lower.includes('mobile')) {
-        return 'Android';
-    }
-    
-    if (lower.includes('windows') || lower.includes('pc') || lower.includes('desktop') || lower.includes('computer')) {
-        return 'Windows';
-    }
-    
-    if (lower.includes('mac') || lower.includes('osx') || lower.includes('macos')) {
-        return 'macOS';
-    }
-    
-    if (lower.includes('linux')) {
-        return 'Linux';
-    }
-    
-    if (lower.includes('playstation') || lower.includes('ps4') || lower.includes('ps5') || lower.includes('console')) {
-        return 'Console';
+    // Check text against each device pattern
+    for (const pattern of devicePatterns) {
+        if (pattern.keywords.some(keyword => lower.includes(keyword))) {
+            return pattern.name;
+        }
     }
     
     return '';
@@ -772,56 +711,96 @@ function extractStepsToReproduce(text, coreIssue) {
     return steps.join('\n');
 }
 
-// Extract expected result from context
+// Extract expected result from text - AI-driven analysis
 function extractExpectedResult(text, coreIssue) {
     const lower = text.toLowerCase();
+    const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
     
-    const resultPatterns = {
-        decal: 'Selected decal is applied and visible on the truck',
-        customization: 'Customization changes are applied and visible',
-        save: 'Data is saved and persists after reload',
-        upload: 'File is successfully uploaded and confirmed',
-        music: 'Audio plays clearly without interruption',
-        video: 'Video plays smoothly from start to finish',
-        payment: 'Transaction is processed and order is confirmed',
-        login: 'User is authenticated and granted access',
-        search: 'Relevant search results are displayed'
-    };
+    // Look for sentences describing what SHOULD happen
+    const shouldPatterns = [
+        /(?:should|should be|supposed to|expect|expected|want|need|must)\s+([^.!?]+?)(?:\\.)?$/i,
+        /(?:it|that|this|feature|system)\s+(?:should|must|would|will|can|would)\s+([^.!?]+?)$/i,
+        /(?:be|work|function|apply|display|show|respond)\s+(?:properly|correctly|as intended)\s+([^.!?]*)/i
+    ];
     
-    // Try to match feature to expected result
-    const featureLower = coreIssue.toLowerCase();
-    for (const [keyword, result] of Object.entries(resultPatterns)) {
-        if (featureLower.includes(keyword)) {
-            return result;
+    // Search for explicit expected result sentences
+    for (const sentence of sentences) {
+        for (const pattern of shouldPatterns) {
+            const match = sentence.match(pattern);
+            if (match && match[1]) {
+                let expected = match[1].trim();
+                if (expected.length > 5 && expected.length < 150) {
+                    return expected.charAt(0).toUpperCase() + expected.slice(1);
+                }
+            }
         }
     }
     
-    // Generic fallback
-    return `Feature functions as designed and produces expected output`;
-}
-
-// Extract actual result from text
-function extractActualResult(text) {
-    const lower = text.toLowerCase();
+    // Look for inverse of problem (what works = what should happen)
+    const workingSentences = sentences.find(s => {
+        const sl = s.toLowerCase();
+        return (sl.includes('works') || sl.includes('working') || sl.includes('applies') || 
+               sl.includes('displays') || sl.includes('shows') || sl.includes('functions')) &&
+               !sl.includes('doesn\'t') && !sl.includes('not');
+    });
     
-    let result = '';
-    
-    // Check for what actually happens
-    if (lower.includes('nothing shows') || lower.includes('nothing happens')) {
-        result = 'Nothing occurs; no visual feedback';
-    } else if (lower.includes('no error') || lower.includes('no feedback') || lower.includes('no message')) {
-        result = 'Feature silently fails with no error message or user feedback';
-    } else if (lower.includes('doesn\'t apply') || lower.includes('not applied')) {
-        result = 'Changes are not applied or reflected in the system';
-    } else if (lower.includes('crash') || lower.includes('freeze')) {
-        result = 'Application crashes or becomes unresponsive';
-    } else if (lower.includes('blank') || lower.includes('empty')) {
-        result = 'Feature displays blank or empty state';
-    } else {
-        result = 'Feature does not function as expected; issue manifests without clear error reporting';
+    if (workingSentences) {
+        return workingSentences.replace(/^(yeah|yep|okay|ok|so|and|but)\s+/i, '').trim();
     }
     
-    return result;
+    // Dynamic fallback based on core issue
+    const coreIssueLower = coreIssue.toLowerCase();
+    if (coreIssueLower.includes('save') || coreIssueLower.includes('data')) {
+        return 'Data is saved and persists after reload';
+    } else if (coreIssueLower.includes('auth') || coreIssueLower.includes('login')) {
+        return 'User is authenticated and gains access to the system';
+    } else if (coreIssueLower.includes('upload') || coreIssueLower.includes('download')) {
+        return 'File transfer completes successfully';
+    } else if (coreIssueLower.includes('audio') || coreIssueLower.includes('music') || coreIssueLower.includes('video')) {
+        return 'Media plays smoothly without interruption';
+    }
+    
+    return `${coreIssue} functions as designed`;
+}
+
+// Extract actual result from text - intelligent analysis
+function extractActualResult(text) {
+    const lower = text.toLowerCase();
+    const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
+    
+    // Find sentences describing the actual problem behavior
+    for (const sentence of sentences) {
+        const sl = sentence.toLowerCase();
+        // Skip sentences describing the expected behavior
+        if (sl.includes('should') || sl.includes('expect') || sl.includes('supposed')) continue;
+        
+        // If sentence describes a problem result, use it
+        if (sl.includes('can\'t') || sl.includes('doesn\'t') || sl.includes('broken') || 
+            sl.includes('nothing shows') || sl.includes('nothing happens') || sl.includes('crash') ||
+            sl.includes('freeze') || sl.includes('blank') || sl.includes('error')) {
+            
+            let actual = sentence.replace(/^(yeah|yep|okay|ok|so|and|but|when|instead)\s+/i, '')
+                                 .replace(/^(?:can't|cannot|doesn't|doesn't work|shouldn't|isn't|not|broken|issue)\s+/i, '')
+                                 .trim();
+            
+            if (actual.length > 5 && actual.length < 150) {
+                return actual.charAt(0).toUpperCase() + actual.slice(1);
+            }
+        }
+    }
+    
+    // Fallback: provide generic description of failure
+    if (lower.includes('nothing shows') || lower.includes('nothing happens')) {
+        return 'Feature produces no output or result';
+    } else if (lower.includes('crash') || lower.includes('freeze')) {
+        return 'Application becomes unresponsive or crashes';
+    } else if (lower.includes('blank') || lower.includes('empty')) {
+        return 'Feature displays blank or empty state';
+    } else if (lower.includes('error')) {
+        return 'Error occurs during operation';
+    }
+    
+    return 'Feature does not function as expected';
 }
 
 function enhanceText(text, tone) {
@@ -992,27 +971,35 @@ function extractSupportInfo(text) {
         .map(s => s.trim())
         .filter(s => s.length > 5 && !dialogueFiller.test(s));
     
-    // Step 2: Extract the broken feature
-    const featureKeywords = {
-        'decal': 'Decal System',
-        'customization': 'Customization System',
-        'texture': 'Texture System',
-        'save': 'Save/Persistence System',
-        'load': 'Loading System',
-        'render': 'Rendering System',
-        'upload': 'Upload System',
-        'download': 'Download System',
-        'payment': 'Payment System',
-        'login': 'Authentication System',
-        'search': 'Search System',
-        'sync': 'Sync System'
-    };
+    // Step 2: Extract the broken feature through intelligent pattern analysis
+    const problemSentences = sentences.filter(s => {
+        const sl = s.toLowerCase();
+        return (sl.includes('cannot') || sl.includes('can\'t') || sl.includes('doesn\'t') || 
+               sl.includes('not working') || sl.includes('broken'));
+    });
     
     let brokenFeature = 'Feature';
-    for (const [keyword, feature] of Object.entries(featureKeywords)) {
-        if (lower.includes(keyword)) {
-            brokenFeature = feature;
-            break;
+    
+    // Try to extract actual feature from problem sentences
+    if (problemSentences.length > 0) {
+        const mainSentence = problemSentences[0];
+        
+        // Pattern-based extraction similar to bug extraction
+        const patterns = [
+            /(?:can't|cannot|doesn't|doesn't work|not working|issue with|problem with|broken)\s+(?:the\s+)?(?:my\s+)?(?:[a-z]+\s+)*([a-z]+(?:\s+[a-z]+)?)/i,
+            /when\s+(?:i\s+)?(?:try\s+to\s+)?([a-z]+(?:\s+[a-z]+)?)\s+(?:is|are|it)\s+(?:not|broken|fails|doesn't)/i,
+            /the\s+([a-z]+(?:\s+[a-z]+)?)\s+(?:is|doesn't|can't|won't)\s+(?:work|function)/i
+        ];
+        
+        for (const pattern of patterns) {
+            const match = mainSentence.match(pattern);
+            if (match && match[1]) {
+                let extracted = match[1].trim();
+                if (!['is', 'a', 'the', 'and', 'or', 'not', 'but'].includes(extracted.toLowerCase())) {
+                    brokenFeature = capitalizeWords(extracted);
+                    break;
+                }
+            }
         }
     }
     
@@ -1020,28 +1007,21 @@ function extractSupportInfo(text) {
     const regressionKeywords = ['worked before', 'worked last', 'used to work', 'previously', 'literally', 'yes', 'it was working', 'did work', 'was working'];
     const isRegression = regressionKeywords.some(keyword => lower.includes(keyword));
     
-    // Step 4: Extract meaningful title - prioritize problem statements over dialogue
+    // Step 4: Extract meaningful title
     let title = isRegression 
         ? `${brokenFeature} not working - Regression`
         : `${brokenFeature} not working`;
     
-    // Try to extract more context from problem statement sentences
-    const problemStatements = sentences.filter(s => {
-        const sl = s.toLowerCase();
-        return (sl.includes('cannot') || sl.includes('can\'t') || sl.includes('doesn\'t') || 
-               sl.includes('not working') || sl.includes('broken'));
-    });
-    
-    // If we have problem statements, look for one that also mentions the feature
+    // Try to refine title from problem statements
     let selectedStatement = null;
     
-    if (problemStatements.length > 0) {
+    if (problemSentences.length > 0) {
         // First, look for problem statement that mentions the feature
-        selectedStatement = problemStatements.find(s => s.toLowerCase().includes(brokenFeature.toLowerCase().split(' ')[0]));
+        selectedStatement = problemSentences.find(s => s.toLowerCase().includes(brokenFeature.toLowerCase().split(' ')[0]));
         
         // If not found, use the first one
         if (!selectedStatement) {
-            selectedStatement = problemStatements[0];
+            selectedStatement = problemSentences[0];
         }
     }
     
@@ -1049,53 +1029,40 @@ function extractSupportInfo(text) {
         let cleanedSentence = selectedStatement
             .replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like|bro|dude|hey|man|seriously|i swear|why|can\'t\s+i|can't\s+i|does\s+(?:not|n\'t)|how\s+come)\s+/i, '')
             .trim()
-            .replace(/\?+$/, ''); // Remove trailing question marks
-        
-        // For common patterns, extract just the meaningful part
-        if (cleanedSentence.includes('place') && cleanedSentence.includes('decal')) {
-            cleanedSentence = 'Cannot place decals';
-        } else if (cleanedSentence.includes('apply') && cleanedSentence.includes('decal')) {
-            cleanedSentence = 'Cannot apply decals';
-        }
+            .replace(/\?+$/, '');
         
         if (cleanedSentence.length > 10 && cleanedSentence.length < 90) {
             title = cleanedSentence.charAt(0).toUpperCase() + cleanedSentence.slice(1);
         }
     }
     
-    // Step 5: Detect impact (single vs multiple vs widespread)
-    const multipleIndicators = ['tried a different', 'all ', 'not just', 'whole ', 'everyone', 'multiple', 'both', 'saw someone else'];
-    const hasMultipleImpact = multipleIndicators.some(indicator => lower.includes(indicator));
+    // Step 5: Detect impact scope through text analysis
+    const impactPatterns = [
+        { keywords: ['multiple', 'all vehicles', 'all trucks', 'whole', 'everyone', 'widespread', 'global'], severity: 'Widespread impact - Critical scope' },
+        { keywords: ['not just one', 'tried a different', 'saw someone else', 'not just me', 'both'], severity: 'Multiple users/items affected' }
+    ];
     
     let impact = 'Single user/occurrence';
-    if (lower.includes('multiple') || lower.includes('all vehicles') || lower.includes('all trucks')) {
-        impact = 'Multiple items/users affected - System-wide issue';
-    } else if (lower.includes('not just one') || lower.includes('tried a different') || lower.includes('saw someone else') || lower.includes('not just me')) {
-        impact = 'Multiple users/items affected';
-    } else if (lower.includes('everyone') || lower.includes('widespread') || lower.includes('global')) {
-        impact = 'Widespread impact - Critical scope';
+    for (const pattern of impactPatterns) {
+        if (pattern.keywords.some(keyword => lower.includes(keyword))) {
+            impact = pattern.severity;
+            break;
+        }
     }
     
-    // Step 6: Detect category
-    const categoryMap = {
-        'Feature Issue': ['feature', 'system', 'decal', 'customization', 'texture'],
-        'Technical Error': ['error', 'bug', 'broken', 'crash', 'not working'],
-        'Regression': ['regression', 'worked before', 'stopped working'],
-        'Data issue': ['data', 'save', 'load', 'sync'],
-        'Performance Issue': ['slow', 'lag', 'freeze', 'delay'],
-        'General Support': ['issue', 'problem', 'help']
-    };
-    
+    // Step 6: Infer category from content patterns
     let category = 'Technical Error';
+    
     if (isRegression) {
         category = 'Regression - Feature Broken';
+    } else if (lower.includes('slow') || lower.includes('lag') || lower.includes('freeze') || lower.includes('delay')) {
+        category = 'Performance Issue';
+    } else if (lower.includes('save') || lower.includes('load') || lower.includes('sync') || lower.includes('data')) {
+        category = 'Data issue';
+    } else if (lower.includes('error') || lower.includes('crash') || lower.includes('fail')) {
+        category = 'Technical Error';
     } else {
-        for (const [cat, keywords] of Object.entries(categoryMap)) {
-            if (keywords.some(keyword => lower.includes(keyword))) {
-                category = cat;
-                break;
-            }
-        }
+        category = 'Feature Issue';
     }
     
     // Step 7: Check urgency
@@ -1107,14 +1074,15 @@ function extractSupportInfo(text) {
         urgency = 'Critical/Urgent';
     }
     
-    // Step 8: Extract required actions
+    // Step 8: Extract required actions based on situation
     let actions = '* Verify issue reproduction\n* Investigate root cause\n* Implement fix or workaround\n* Test resolution\n* Update customer';
     
     if (isRegression) {
         actions = '* [HIGH PRIORITY] Analyze recent changes\n* Identify what broke in last update\n* Implement rollback or fix\n* Extensive regression testing\n* Deploy fix immediately';
     }
     
-    if (hasMultipleImpact || impact.includes('Multiple') || impact.includes('Widespread')) {
+    const hasMultipleImpact = impact.includes('Multiple') || impact.includes('Widespread');
+    if (hasMultipleImpact) {
         actions = '* [CRITICAL] Escalate immediately\n' + actions;
     }
     
