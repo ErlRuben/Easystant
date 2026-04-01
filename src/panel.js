@@ -966,25 +966,53 @@ function extractSupportInfo(text) {
     };
 }
 
-// Extract General Task Info - Flexible parsing for general/miscellaneous tasks
+// Extract General Task Info - Intelligent flexible parsing for any task type
 function extractGeneralInfo(text) {
+    const lower = text.toLowerCase();
+    
     // Step 1: Filter out dialogue filler
     const dialogueFiller = /^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|uh|um|like|so|but|and|well)/i;
     const sentences = text.split(/[.!?]+/)
         .map(s => s.trim())
         .filter(s => s.length > 5 && !dialogueFiller.test(s));
     
-    // Step 2: Generate title from first meaningful sentence
+    // Step 2: Detect if content is bug/issue-related
+    const bugIndicators = ['can\'t', 'cannot', 'doesn\'t', 'broken', 'not working', 'doesn\'t work', 'issue', 'bug', 'crash', 'error', 'fail', 'unable'];
+    const isBugRelated = bugIndicators.some(indicator => lower.includes(indicator));
+    
+    // Step 3: Smart title generation
     let title = 'Task';
-    if (sentences.length > 0) {
-        const firstSentence = sentences[0].trim();
-        // Remove dialogue filler from the beginning if still present
-        const cleanedSentence = firstSentence.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
-        title = cleanedSentence.length > 85 ? cleanedSentence.substring(0, 82) + '...' : (cleanedSentence || firstSentence);
+    
+    if (isBugRelated) {
+        // For bug-related content, extract a concise problem statement
+        const problemSentences = sentences.filter(s => {
+            const sl = s.toLowerCase();
+            return bugIndicators.some(ind => sl.includes(ind)) && !sl.startsWith('why') && !sl.startsWith('did');
+        });
+        
+        if (problemSentences.length > 0) {
+            const mainProblem = problemSentences[0];
+            const cleaned = mainProblem.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like|why|how come)\s+/i, '').trim();
+            
+            // Capitalize and clean up
+            title = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+            if (title.length > 85) {
+                title = title.substring(0, 82) + '...';
+            }
+        }
+    } else {
+        // For non-bug content, try to extract from first meaningful sentence
+        if (sentences.length > 0) {
+            const firstSentence = sentences[0].trim();
+            const cleanedSentence = firstSentence.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
+            title = cleanedSentence.length > 85 ? cleanedSentence.substring(0, 82) + '...' : (cleanedSentence || firstSentence);
+        }
     }
     
-    // Step 3: Extract "details" field by looking for patterns with "need", "required", "must", "should"
+    // Step 4: Extract "details" field intelligently
     let details = 'Complete as described';
+    
+    // Look for explicit instructions first
     const detailPatterns = [
         /(?:need|required|must|should|have to)\s+([^.!?]+?)(?:\.|,|;|and|or|$)/i,
         /(?:to|in order to)\s+([^.!?]+?)(?:\.|,|;|and|or|$)/i
@@ -1001,22 +1029,44 @@ function extractGeneralInfo(text) {
         }
     }
     
-    // If no match found, extract from a meaningful sentence
+    // For bug-related content, extract what was expected vs actual
+    if (details === 'Complete as described' && isBugRelated) {
+        const expectedPatterns = [
+            /(?:should|should be|supposed to|expect|expected|want|need)\s+([^.!?]+?)(?:\.|,|;|$)/i,
+            /(?:should\s+)?(?:it|they|feature|system)\s+(?:work|function|display|show|apply)\s+([^.!?]+?)(?:\.|,|;|$)/i
+        ];
+        
+        for (const pattern of expectedPatterns) {
+            const match = text.match(pattern);
+            if (match && match[1] && match[1].length > 5) {
+                details = 'Fix to: ' + match[1].trim();
+                if (details.length > 150) {
+                    details = details.substring(0, 147) + '...';
+                }
+                break;
+            }
+        }
+    }
+    
+    // Fallback: use another sentence if pattern didn't match
     if (details === 'Complete as described' && sentences.length > 1) {
         const meaningfulSent = sentences.find(s => {
-            const lower = s.toLowerCase();
-            return lower.includes('need') || lower.includes('required') || lower.includes('must') || 
-                   lower.includes('should') || lower.includes('want') || lower.includes('make');
+            const sl = s.toLowerCase();
+            return sl.includes('need') || sl.includes('required') || sl.includes('must') || 
+                   sl.includes('should') || sl.includes('want') || sl.includes('make') ||
+                   sl.includes('work') || sl.includes('apply') || sl.includes('display');
         });
         
         if (meaningfulSent) {
-            const cleaned = meaningfulSent.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
+            const cleaned = meaningfulSent.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like|why|how come)\s+/i, '').trim();
             details = cleaned;
         }
     }
     
-    const description = sentences.slice(0, 2).join(' ').trim();
+    // Step 5: Extract description (use more context for bug-related issues)
+    const descriptionSentenceCount = isBugRelated ? 3 : 2;
+    const description = sentences.slice(0, descriptionSentenceCount).join(' ').trim();
     const descriptionText = description.length > 220 ? description.substring(0, 217) + '...' : (description || text.substring(0, 217));
     
-    return { title, description: descriptionText, details };
+    return { title, description: descriptionText, details, isBugRelated };
 }
