@@ -34,9 +34,18 @@
         <section id="tone-selector" class="tone-selector" style="display: none;">
             <p class="tone-label">Choose tone for Fix Chat:</p>
             <div class="tone-buttons">
-                <button id="tone-casual" class="tone-btn" data-tone="casual">Casual</button>
-                <button id="tone-professional" class="tone-btn" data-tone="professional">Professional</button>
-                <button id="tone-simple" class="tone-btn" data-tone="simple">Simple</button>
+                <div class="tooltip-container">
+                    <button id="tone-casual" class="tone-btn" data-tone="casual">Casual</button>
+                    <span class="tooltip-text">Friendly, informal, conversational tone</span>
+                </div>
+                <div class="tooltip-container">
+                    <button id="tone-professional" class="tone-btn" data-tone="professional">Professional</button>
+                    <span class="tooltip-text">Formal, business-appropriate tone</span>
+                </div>
+                <div class="tooltip-container">
+                    <button id="tone-simple" class="tone-btn" data-tone="simple">Simple</button>
+                    <span class="tooltip-text">Clear, straightforward language</span>
+                </div>
             </div>
             <button id="tone-cancel" class="tone-cancel">Cancel</button>
         </section>
@@ -44,9 +53,18 @@
         <section id="task-type-selector" class="task-type-selector" style="display: none;">
             <p class="task-label">Choose task type:</p>
             <div class="task-type-buttons">
-                <button class="task-type-btn" data-type="bug">🐛 Bug Report</button>
-                <button class="task-type-btn" data-type="support">👥 Support</button>
-                <button class="task-type-btn" data-type="general">✓ General Task</button>
+                <div class="tooltip-container">
+                    <button class="task-type-btn" data-type="bug">🐛 Bug Report</button>
+                    <span class="tooltip-text">For reporting software bugs, errors, crashes, and technical issues</span>
+                </div>
+                <div class="tooltip-container">
+                    <button class="task-type-btn" data-type="support">👥 Support</button>
+                    <span class="tooltip-text">For customer support issues and technical problems</span>
+                </div>
+                <div class="tooltip-container">
+                    <button class="task-type-btn" data-type="general">✓ General Task</button>
+                    <span class="tooltip-text">For non-development tasks like notes, reminders, project management</span>
+                </div>
             </div>
             <p class="task-hint">Or choose General Task if unsure</p>
             <button id="task-cancel" class="task-cancel">Cancel</button>
