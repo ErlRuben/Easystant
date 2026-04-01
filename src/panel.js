@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Back Button
     backBtn.addEventListener('click', () => {
         resultContainer.style.display = 'none';
-        if (currentTaskType !== 'general' || currentTaskType) {
+        if (currentTaskType) {
             taskTypeSelector.style.display = 'flex';
         } else {
             toneSelector.style.display = 'flex';
