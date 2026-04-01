@@ -324,6 +324,28 @@ ${deadline || '(no deadline specified)'}
 function extractTaskInfo(text) {
     text = text.trim();
     
+    // Check if this actually looks like a bug report
+    const lower = text.toLowerCase();
+    const bugIndicators = ['can\'t', 'cannot', 'broken', 'doesn\'t', 'not working', 'doesn\'t work', 
+                          'issue', 'bug', 'crashing', 'error', 'fail', 'unable', 'wrong', 'crash', 'freeze'];
+    const isBugLike = bugIndicators.some(indicator => lower.includes(indicator));
+    
+    // If this doesn't look like a bug report at all, use a fallback approach
+    if (!isBugLike) {
+        // This is probably a general/support task being converted to bug - be more flexible
+        const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
+        const description = sentences.slice(0, 2).join(' ').trim();
+        const title = sentences.length > 0 ? sentences[0].substring(0, 75) : text.substring(0, 75);
+        
+        return {
+            title: title.charAt(0).toUpperCase() + title.slice(1),
+            description: description || text.substring(0, 220),
+            coreIssue: 'Task',
+            issueType: 'general_as_bug',
+            isWideScope: false
+        };
+    }
+    
     // Expanded feature keyword mapping
     const featureKeywords = {
         decal: 'Decal System',
@@ -374,17 +396,16 @@ function extractTaskInfo(text) {
     
     // Find problem statements
     const problemSentences = sentences.filter(s => {
-        const lower = s.toLowerCase();
-        return (lower.includes('can\'t') || lower.includes('cannot') || lower.includes('broken') || 
-                lower.includes('doesn\'t') || lower.includes('not working') || lower.includes('doesn\'t work') ||
-                lower.includes('nothing shows') || lower.includes('doesn\'t apply') || lower.includes('issue') ||
-                lower.includes('bug') || lower.includes('crashing') || lower.includes('error') ||
-                lower.includes('fail') || lower.includes('unable') || lower.includes('wrong')) &&
-               !lower.startsWith('why') && !lower.startsWith('did') && !lower.startsWith('maybe');
+        const sl = s.toLowerCase();
+        return (sl.includes('can\'t') || sl.includes('cannot') || sl.includes('broken') || 
+                sl.includes('doesn\'t') || sl.includes('not working') || sl.includes('doesn\'t work') ||
+                sl.includes('nothing shows') || sl.includes('doesn\'t apply') || sl.includes('issue') ||
+                sl.includes('bug') || sl.includes('crashing') || sl.includes('error') ||
+                sl.includes('fail') || sl.includes('unable') || sl.includes('wrong')) &&
+               !sl.startsWith('why') && !sl.startsWith('did') && !sl.startsWith('maybe');
     });
     
     let coreIssue = '';
-    const lower = text.toLowerCase();
     
     // Step 1: Try to match exact feature keywords
     for (const [keyword, featureName] of Object.entries(featureKeywords)) {
@@ -485,6 +506,15 @@ function extractTaskInfo(text) {
 function generateSmartTitle(coreIssue, issueType) {
     let title = '';
     
+    // Handle general tasks converted to bug format
+    if (issueType === 'general_as_bug') {
+        title = `[TASK] ${coreIssue}`;
+        if (title.length > 75) {
+            title = title.substring(0, 72) + '...';
+        }
+        return title;
+    }
+    
     // Action verb mapping for better titles
     const actionMap = {
         'decal': 'Cannot Apply Decals',
@@ -527,6 +557,11 @@ function generateSmartTitle(coreIssue, issueType) {
 // Generate comprehensive AI-inferred description
 function generateComprehensiveDescription(coreIssue, issueType, isWideScope, troubleshooted, fullText) {
     const lower = fullText.toLowerCase();
+    
+    // Handle general tasks converted to bug format
+    if (issueType === 'general_as_bug') {
+        return fullText.substring(0, 300);
+    }
     
     // Identify affected system
     const featureKeywords = {
