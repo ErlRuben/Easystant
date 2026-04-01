@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Easystant",
+  "version": "0.1.0",
+  "description": "AI-powered assistant for communication, task creation, and workflow optimization",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_popup": "public/panel.html",
+    "default_title": "Easystant",
+    "default_icon": "public/icons/Recon Tech Logo.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content-script.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "128": "public/icons/Recon Tech Logo.png"
+  }
+}

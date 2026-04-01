@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easystant</title>
+    <link rel="stylesheet" href="../src/styles/panel.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <img src="icons/Recon Tech Logo.png" alt="Easystant Logo" class="logo">
+            <h1>Easystant</h1>
+            <p class="subtitle">AI Assistant for Any Website</p>
+        </header>
+
+        <main id="panel-content">
+            <div class="empty-state">
+                <p>👋 Highlight any text on the website to get started</p>
+            </div>
+        </main>
+
+        <section id="actions" class="actions-section" style="display: none;">
+            <button id="fix-chat-btn" class="action-btn">
+                <span class="icon">💬</span>
+                <span>Fix Chat</span>
+            </button>
+            <button id="create-task-btn" class="action-btn">
+                <span class="icon">✓</span>
+                <span>Create Task</span>
+            </button>
+        </section>
+
+        <section id="tone-selector" class="tone-selector" style="display: none;">
+            <p class="tone-label">Choose tone for Fix Chat:</p>
+            <div class="tone-buttons">
+                <button id="tone-casual" class="tone-btn" data-tone="casual">Casual</button>
+                <button id="tone-professional" class="tone-btn" data-tone="professional">Professional</button>
+                <button id="tone-simple" class="tone-btn" data-tone="simple">Simple</button>
+            </div>
+            <button id="tone-cancel" class="tone-cancel">Cancel</button>
+        </section>
+
+        <div id="result-container" class="result-container" style="display: none;">
+            <div id="result-content" class="result-content"></div>
+            <div class="result-actions">
+                <button id="copy-btn" class="copy-btn">Copy</button>
+                <button id="back-btn" class="back-btn">Back</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../src/panel.js"></script>
+</body>
+</html>

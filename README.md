@@ -18,39 +18,30 @@ Easystant is a Chrome extension designed to assist users across any website by i
     - Users lose useful results if not saved
     - No built-in way to revisit past outputs
 
-4. Problem 4: Language Barrier
-    - Messages may come in different languages
-    - Hard to understand and respond clearly
-    - Requires switching tools for translation
+
 
 ## Solution: Easystant Chrome Extension
     - A right-click and panel-based assistant that works across any website, eliminating the need to switch tools.
 
 ## Key Features
 1. Communication Assistant
-    Right-click any text to:
-    - Fix your message (choose tone: casual, professional, simple
-    - Understand messages (clear or detailed explanation)
-    Results appear in the extension panel.
+    Right-click any text to fix your message:
+    - Select desired tone: casual, professional, or simple
+    - Get an improved version of your message
+    - Copy and use instantly
+
 
 2. Smart Task Generator
-    Highlight text and create a task instantly:
-    - Generates a clear title
-    - Adds a description
-    - Suggests a priority
-    Ready to copy from the extension panel.
+    Right-click any text to create a task instantly:
+    - Task title (auto-generated from text)
+    - Task description (full context preserved)
+    - Priority level (automatically suggested)
 
 3. History / Logs System
     Automatically saves all generated outputs:
-    - View recent chats, tasks, and translations
+    - View recent chats and tasks
     - Copy previous results anytime
     - Option to favorite items (future feature)
-
-4. Translate and Simplify
-    Highlight text to:
-    - Translate into English
-    - Simplify for easier understanding
-    Results appear in the extension panel.
 
 
 

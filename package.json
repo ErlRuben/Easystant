@@ -1,0 +1,19 @@
+{
+  "name": "easystant",
+  "version": "0.1.0",
+  "description": "AI-powered Chrome extension for communication, task creation, and workflow optimization",
+  "type": "module",
+  "scripts": {
+    "dev": "watchman-make -p 'src/**' -- npm run build",
+    "build": "echo 'Build step - configure as needed'",
+    "test": "echo 'Test step - configure as needed'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rencontech/easystant"
+  },
+  "author": "Rencon Tech",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {}
+}

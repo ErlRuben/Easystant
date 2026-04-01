@@ -8,7 +8,7 @@ User can copy or reuse the result (automatically saved)
 Works across platforms (Gmail, Slack, job platforms, etc.)
 Eliminates the need to switch between tools
 Addresses real workflow issues for remote workers and VAs
-Combines communication, task management, and translation in one tool
+Combines communication and task management in one tool
 
 - Suggested Taglines
 Turn messy chats into clear actions
@@ -24,7 +24,6 @@ Understand faster. Work smarter
 
 # Version 2
 - History system (localStorage)
-- Translate feature
 
 # Version 3
 - Enhanced task generation (priority, structure improvements)
