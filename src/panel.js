@@ -683,36 +683,60 @@ function extractDevice(text) {
     return '';
 }
 
-// Extract steps to reproduce from context
+// Extract steps to reproduce from context - AI-driven analysis
 function extractStepsToReproduce(text, coreIssue) {
     const lower = text.toLowerCase();
+    const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
     
-    // Common step patterns for different features
-    const stepPatterns = {
-        decal: ['1. Open/access the game', '2. Navigate to truck customization', '3. Select the decals option', '4. Attempt to apply any decal'],
-        customization: ['1. Access customization menu', '2. Select the feature', '3. Try to apply changes', '4. Attempt to save/confirm'],
-        save: ['1. Create or modify content', '2. Attempt to save', '3. Check if saved data persists', '4. Reload/relaunch to verify'],
-        upload: ['1. Select file to upload', '2. Initiate upload process', '3. Wait for completion', '4. Verify upload status'],
-        music: ['1. Access audio settings', '2. Select audio option', '3. Play audio', '4. Verify sound output'],
-        video: ['1. Open media player', '2. Load video file', '3. Press play', '4. Verify playback'],
-        payment: ['1. Add item to cart', '2. Proceed to checkout', '3. Enter payment details', '4. Complete transaction'],
-        login: ['1. Open login screen', '2. Enter credentials', '3. Submit login', '4. Verify authentication'],
-        search: ['1. Open search feature', '2. Enter search term', '3. Execute search', '4. Review results']
-    };
+    let steps = [];
     
-    // Try to match feature to step pattern
-    const featureLower = coreIssue.toLowerCase();
-    for (const [keyword, steps] of Object.entries(stepPatterns)) {
-        if (featureLower.includes(keyword)) {
-            return steps.join('\n');
-        }
+    // Step 1: Extract initial action (open, access, navigate, go to, etc.)
+    const actionKeywords = ['open', 'access', 'navigate', 'go to', 'launch', 'start', 'load', 'enter'];
+    const initialAction = sentences.find(s => {
+        const sl = s.toLowerCase();
+        return actionKeywords.some(keyword => sl.includes(keyword));
+    });
+    
+    if (initialAction) {
+        steps.push(`1. ${initialAction.replace(/^(yeah|yep|okay|ok|so|and|but)\s+/i, '').trim()}`);
+    } else {
+        steps.push(`1. Access/open the ${coreIssue.toLowerCase()}`);
     }
     
-    // Generic fallback
-    return `1. Access the affected feature
-2. Perform the intended action
-3. Observe the issue
-4. Note any error messages or lack thereof`;
+    // Step 2: Extract selection/setup action (select, choose, configure, etc.)
+    const setupKeywords = ['select', 'choose', 'click', 'tap', 'configure', 'set', 'change', 'enable'];
+    const setupAction = sentences.find(s => {
+        const sl = s.toLowerCase();
+        return setupKeywords.some(keyword => sl.includes(keyword)) && 
+               !sl.includes('can\'t') && !sl.includes('doesn\'t') && !sl.includes('broken');
+    });
+    
+    if (setupAction) {
+        steps.push(`2. ${setupAction.replace(/^(yeah|yep|okay|ok|so|and|but)\s+/i, '').trim()}`);
+    } else {
+        steps.push(`2. Configure or select options when prompted`);
+    }
+    
+    // Step 3: Extract action that triggers the issue (try to, attempt to, etc.)
+    const triggerKeywords = ['try', 'attempt', 'perform', 'apply', 'execute', 'use', 'run', 'save', 'submit'];
+    const triggerAction = sentences.find(s => {
+        const sl = s.toLowerCase();
+        return triggerKeywords.some(keyword => sl.includes(keyword)) && 
+               (sl.includes('can\'t') || sl.includes('doesn\'t') || sl.includes('broken') || 
+                sl.includes('not working') || sl.includes('issue'));
+    });
+    
+    if (triggerAction) {
+        const cleaned = triggerAction.replace(/(?:can't|cannot|doesn't|doesn't work|broken|doesn't apply|issue|problem|bug)\s*/gi, '').trim();
+        steps.push(`3. ${cleaned.charAt(0).toUpperCase() + cleaned.slice(1)}`);
+    } else {
+        steps.push(`3. Trigger the action that causes the issue`);
+    }
+    
+    // Step 4: Observation/verification
+    steps.push(`4. Observe and note the unexpected behavior or error`);
+    
+    return steps.join('\n');
 }
 
 // Extract expected result from context
@@ -770,19 +794,94 @@ function extractActualResult(text) {
 function enhanceText(text, tone) {
     let improved = text.trim();
     
+    // Common informal-to-professional replacements
+    const replacements = {
+        professional: {
+            'wanna': 'want to',
+            'gonna': 'going to',
+            'gotta': 'got to',
+            'kinda': 'kind of',
+            'sorta': 'sort of',
+            'btw': 'by the way',
+            'pls': 'please',
+            'thx': 'thanks',
+            'u': 'you',
+            'ur': 'your',
+            'idk': 'I don\'t know',
+            'omg': 'oh my',
+            'lol': '',
+            'yeah': 'yes',
+            'yep': 'yes',
+            'nope': 'no',
+            'ain\'t': 'is not',
+            'isn\'t': 'is not',
+            'won\'t': 'will not',
+            'can\'t': 'cannot',
+            'couldn\'t': 'could not',
+            'hasn\'t': 'has not',
+            'haven\'t': 'have not'
+        },
+        casual: {
+            'cannot': 'can\'t',
+            'will not': 'won\'t',
+            'could not': 'couldn\'t',
+            'is not': 'isn\'t',
+            'have not': 'haven\'t',
+            'has not': 'hasn\'t',
+            'please': 'pls',
+            'thanks': 'thx',
+            'by the way': 'btw'
+        },
+        simple: {
+            'utilize': 'use',
+            'subsequently': 'then',
+            'regarding': 'about',
+            'endeavor': 'try',
+            'facilitate': 'help',
+            'implement': 'do',
+            'terminate': 'end',
+            'commence': 'start',
+            'endeavor': 'try',
+            ' however ': ' but ',
+            ' therefore ': ' so '
+        }
+    };
+    
+    // Apply replacements for the tone
+    if (replacements[tone]) {
+        const toneReplacements = replacements[tone];
+        for (const [src, dst] of Object.entries(toneReplacements)) {
+            const regex = new RegExp(`\\b${src}\\b`, 'gi');
+            improved = improved.replace(regex, dst);
+        }
+    }
+    
+    // Capitalize/adjust punctuation based on tone
     switch (tone) {
         case 'casual':
-            improved = improved.replace(/\.$/, '!');
+            // Add energy with exclamation marks where appropriate
+            improved = improved.replace(/\.$/g, '!');
+            improved = improved.replace(/\.(\s+[A-Z])/g, '! $1');
             break;
         case 'professional':
-            improved = improved.charAt(0).toUpperCase() + improved.slice(1).toLowerCase();
+            // Ensure proper capitalization and formal punctuation
+            improved = improved.charAt(0).toUpperCase() + improved.slice(1);
+            improved = improved.replace(/!+/g, '.'); // Replace exclamation with periods
+            improved = improved.replace(/\?{2,}/g, '?'); // Remove multiple question marks
             break;
         case 'simple':
-            improved = improved.toLowerCase();
+            // Make sentences shorter and clearer
+            improved = improved.charAt(0).toUpperCase() + improved.slice(1);
+            // Break up long sentences at conjunctions
+            improved = improved.replace(/,\s+which\s+/gi, '. This ');
+            improved = improved.replace(/,\s+that\s+/gi, '. That ');
             break;
         default:
-            improved = improved.charAt(0).toUpperCase() + improved.slice(1).toLowerCase();
+            improved = improved.charAt(0).toUpperCase() + improved.slice(1);
     }
+    
+    // Clean up extra spaces
+    improved = improved.replace(/\s+/g, ' ').trim();
     
     return improved;
 }
@@ -1001,53 +1100,24 @@ function extractSupportInfo(text) {
     };
 }
 
-// Extract General Task Info - Intelligent flexible parsing for any task type
+// Extract General Task Info - For non-development tasks (project mgmt, reminders, notes, etc.)
 function extractGeneralInfo(text) {
-    const lower = text.toLowerCase();
-    
     // Step 1: Filter out dialogue filler
     const dialogueFiller = /^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|uh|um|like|so|but|and|well)/i;
     const sentences = text.split(/[.!?]+/)
         .map(s => s.trim())
         .filter(s => s.length > 5 && !dialogueFiller.test(s));
     
-    // Step 2: Detect if content is bug/issue-related
-    const bugIndicators = ['can\'t', 'cannot', 'doesn\'t', 'broken', 'not working', 'doesn\'t work', 'issue', 'bug', 'crash', 'error', 'fail', 'unable'];
-    const isBugRelated = bugIndicators.some(indicator => lower.includes(indicator));
-    
-    // Step 3: Smart title generation
+    // Step 2: Generate title from first meaningful sentence
     let title = 'Task';
-    
-    if (isBugRelated) {
-        // For bug-related content, extract a concise problem statement
-        const problemSentences = sentences.filter(s => {
-            const sl = s.toLowerCase();
-            return bugIndicators.some(ind => sl.includes(ind)) && !sl.startsWith('why') && !sl.startsWith('did');
-        });
-        
-        if (problemSentences.length > 0) {
-            const mainProblem = problemSentences[0];
-            const cleaned = mainProblem.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like|why|how come)\s+/i, '').trim();
-            
-            // Capitalize and clean up
-            title = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-            if (title.length > 85) {
-                title = title.substring(0, 82) + '...';
-            }
-        }
-    } else {
-        // For non-bug content, try to extract from first meaningful sentence
-        if (sentences.length > 0) {
-            const firstSentence = sentences[0].trim();
-            const cleanedSentence = firstSentence.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
-            title = cleanedSentence.length > 85 ? cleanedSentence.substring(0, 82) + '...' : (cleanedSentence || firstSentence);
-        }
+    if (sentences.length > 0) {
+        const firstSentence = sentences[0].trim();
+        const cleanedSentence = firstSentence.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
+        title = cleanedSentence.length > 85 ? cleanedSentence.substring(0, 82) + '...' : (cleanedSentence || firstSentence);
     }
     
-    // Step 4: Extract "details" field intelligently
+    // Step 3: Extract "details" field by looking for patterns with "need", "required", "must", "should"
     let details = 'Complete as described';
-    
-    // Look for explicit instructions first
     const detailPatterns = [
         /(?:need|required|must|should|have to)\s+([^.!?]+?)(?:\.|,|;|and|or|$)/i,
         /(?:to|in order to)\s+([^.!?]+?)(?:\.|,|;|and|or|$)/i
@@ -1064,44 +1134,23 @@ function extractGeneralInfo(text) {
         }
     }
     
-    // For bug-related content, extract what was expected vs actual
-    if (details === 'Complete as described' && isBugRelated) {
-        const expectedPatterns = [
-            /(?:should|should be|supposed to|expect|expected|want|need)\s+([^.!?]+?)(?:\.|,|;|$)/i,
-            /(?:should\s+)?(?:it|they|feature|system)\s+(?:work|function|display|show|apply)\s+([^.!?]+?)(?:\.|,|;|$)/i
-        ];
-        
-        for (const pattern of expectedPatterns) {
-            const match = text.match(pattern);
-            if (match && match[1] && match[1].length > 5) {
-                details = 'Fix to: ' + match[1].trim();
-                if (details.length > 150) {
-                    details = details.substring(0, 147) + '...';
-                }
-                break;
-            }
-        }
-    }
-    
-    // Fallback: use another sentence if pattern didn't match
+    // Fallback: Extract from a meaningful sentence if pattern didn't match
     if (details === 'Complete as described' && sentences.length > 1) {
         const meaningfulSent = sentences.find(s => {
-            const sl = s.toLowerCase();
-            return sl.includes('need') || sl.includes('required') || sl.includes('must') || 
-                   sl.includes('should') || sl.includes('want') || sl.includes('make') ||
-                   sl.includes('work') || sl.includes('apply') || sl.includes('display');
+            const lower = s.toLowerCase();
+            return lower.includes('need') || lower.includes('required') || lower.includes('must') || 
+                   lower.includes('should') || lower.includes('want') || lower.includes('make');
         });
         
         if (meaningfulSent) {
-            const cleaned = meaningfulSent.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like|why|how come)\s+/i, '').trim();
+            const cleaned = meaningfulSent.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
             details = cleaned;
         }
     }
     
-    // Step 5: Extract description (use more context for bug-related issues)
-    const descriptionSentenceCount = isBugRelated ? 3 : 2;
-    const description = sentences.slice(0, descriptionSentenceCount).join(' ').trim();
+    // Step 4: Extract description (use first 2 sentences for general tasks)
+    const description = sentences.slice(0, 2).join(' ').trim();
     const descriptionText = description.length > 220 ? description.substring(0, 217) + '...' : (description || text.substring(0, 217));
     
-    return { title, description: descriptionText, details, isBugRelated };
+    return { title, description: descriptionText, details };
 }
