@@ -554,7 +554,7 @@ function generateSmartTitle(coreIssue, issueType) {
     return title;
 }
 
-// Generate comprehensive AI-inferred description
+// Generate comprehensive AI-inferred description from actual text
 function generateComprehensiveDescription(coreIssue, issueType, isWideScope, troubleshooted, fullText) {
     const lower = fullText.toLowerCase();
     
@@ -563,62 +563,95 @@ function generateComprehensiveDescription(coreIssue, issueType, isWideScope, tro
         return fullText.substring(0, 300);
     }
     
-    // Identify affected system
-    const featureKeywords = {
-        decal: 'decal customization',
-        texture: 'texture application',
-        customize: 'customization system',
-        save: 'save/persistence',
-        load: 'loading',
-        render: 'rendering',
-        apply: 'application',
-        select: 'selection',
-        show: 'display/rendering',
-        crash: 'stability',
-        freeze: 'performance',
-        lag: 'network/latency',
-        fps: 'performance'
-    };
+    // Split into sentences
+    const sentences = fullText.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 5);
     
-    let affectedSystem = 'feature';
-    for (const [keyword, system] of Object.entries(featureKeywords)) {
-        if (lower.includes(keyword)) {
-            affectedSystem = system;
-            break;
-        }
-    }
+    // Step 1: Extract the core problem description from the text
+    const problemSentences = sentences.filter(s => {
+        const sl = s.toLowerCase();
+        return (sl.includes('can\'t') || sl.includes('cannot') || sl.includes('broken') || 
+                sl.includes('doesn\'t') || sl.includes('not working') || sl.includes('doesn\'t work') ||
+                sl.includes('issue') || sl.includes('bug') || sl.includes('error') ||
+                sl.includes('fail') || sl.includes('unable') || sl.includes('wrong')) &&
+               !sl.startsWith('why') && !sl.startsWith('did') && !sl.startsWith('maybe');
+    });
     
     let description = '';
     
-    // Build description based on evidence
-    if (issueType === 'regression') {
-        description = `The ${affectedSystem} was previously functional but is now broken. `;
+    // Use actual problem sentences if available
+    if (problemSentences.length > 0) {
+        const mainProblem = problemSentences[0]
+            .replace(/^(yeah|yep|okay|ok|so|and|but|well)/i, '')
+            .trim();
+        description = mainProblem.charAt(0).toUpperCase() + mainProblem.slice(1) + '. ';
+    }
+    
+    // Step 2: Extract impact/scope from actual text
+    if (isWideScope) {
+        const scopeSentences = sentences.find(s => {
+            const sl = s.toLowerCase();
+            return (sl.includes('all ') || sl.includes('entire ') || sl.includes('whole ') || 
+                   sl.includes('every ') || sl.includes('all vehicles') || sl.includes('all trucks'));
+        });
         
-        if (isWideScope) {
+        if (scopeSentences) {
+            description += scopeSentences.replace(/^(yeah|yep|okay|ok|so|and|but)\s+/i, '').trim() + '. ';
+        } else {
             description += `This affects the entire system (not isolated to one item). `;
         }
+    }
+    
+    // Step 3: Extract regression context if applicable
+    if (issueType === 'regression') {
+        const regressionSentences = sentences.find(s => {
+            const sl = s.toLowerCase();
+            return (sl.includes('work before') || sl.includes('worked before') || sl.includes('worked last') ||
+                   sl.includes('previously') || sl.includes('used to work') || sl.includes('it was working'));
+        });
         
-        description += `User confirmed this worked in a prior version and stopped working after a recent update. `;
-        
-        if (troubleshooted) {
-            description += `Standard troubleshooting (restart, reinstall) has been attempted without resolving the issue. `;
+        if (regressionSentences) {
+            description += regressionSentences.replace(/^(yeah|yep|okay|ok|so|and|but)\s+/i, '').trim() + '. ';
+        } else {
+            description += 'This feature was previously working but stopped after a recent update. ';
         }
+    }
+    
+    // Step 4: Extract troubleshooting evidence from actual text
+    if (troubleshooted) {
+        const troubleshootSentences = sentences.find(s => {
+            const sl = s.toLowerCase();
+            return (sl.includes('restart') || sl.includes('reinstall') || sl.includes('restarted') ||
+                   sl.includes('reinstalled') || sl.includes('tried'));
+        });
         
-        description += `Requires investigation to identify what changed in the last update and rollback or fix the regression.`;
-    } else {
-        description = `The ${affectedSystem} is not functioning as expected. When accessed, the feature does not respond or apply changes. `;
-        
-        if (isWideScope) {
-            description += `This issue is pervasive across the entire system rather than isolated. `;
+        if (troubleshootSentences) {
+            description += troubleshootSentences.replace(/^(yeah|yep|okay|ok|so|and|but)\s+/i, '').trim() + '. ';
+        } else {
+            description += 'Standard troubleshooting steps have been attempted without resolution. ';
         }
-        
-        description += `No error messages or warnings are being displayed to guide the user. `;
-        
-        if (troubleshooted) {
-            description += `Common troubleshooting steps have been performed without resolution. `;
-        }
-        
-        description += `Root cause analysis needed to determine if this is a missing feature, data issue, or technical bug.`;
+    }
+    
+    // Step 5: Extract error/behavior details from text
+    const behaviorSentences = sentences.find(s => {
+        const sl = s.toLowerCase();
+        return (sl.includes('nothing shows') || sl.includes('nothing happens') || 
+               sl.includes('blank') || sl.includes('empty') || sl.includes('crash') || 
+               sl.includes('freeze') || sl.includes('no error') || sl.includes('no feedback'));
+    });
+    
+    if (behaviorSentences) {
+        description += behaviorSentences.replace(/^(yeah|yep|okay|ok|so|and|but)\s+/i, '').trim() + '. ';
+    } else if (description.length < 100) {
+        // If description is too short, add generic outcome
+        description += `The feature does not function as intended. `;
+    }
+    
+    // Clean up and ensure proper format
+    description = description.replace(/\s+/g, ' ').trim();
+    
+    // Ensure it ends with appropriate context
+    if (!description.endsWith('.')) {
+        description += '.';
     }
     
     return description;
