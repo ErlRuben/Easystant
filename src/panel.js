@@ -135,24 +135,40 @@ Improved:
 // Create Task Feature
 function createTask(text) {
     try {
-        const { title, description } = extractTaskInfo(text);
+        const { title, description, coreIssue, issueType, isWideScope } = extractTaskInfo(text);
         const priority = suggestPriority(text);
         const version = extractVersion(text);
         const device = extractDevice(text);
+        const stepsToReproduce = extractStepsToReproduce(text, coreIssue);
+        const expectedResult = extractExpectedResult(text, coreIssue);
+        const actualResult = extractActualResult(text);
         
         return `
 📋 TASK
 
-Title:
+**Title:**
 ${title}
 
-Description:
+**Description:**
 ${description}
 
-Priority: ${priority}
-Version: ${version || '(not mentioned)'}
-Device: ${device || '(not mentioned)'}
-Created: ${new Date().toLocaleString()}
+**Steps to Reproduce:**
+${stepsToReproduce}
+
+**Expected Result:**
+${expectedResult}
+
+**Actual Result:**
+${actualResult}
+
+**Scope / Impact:**
+${isWideScope ? '* Affects entire system / all variations of the feature' : '* Issue may be isolated to specific conditions'}
+* Feature is completely non-functional in the affected area
+
+**Priority:** ${priority}
+**Version:** ${version || 'Unknown (not mentioned)'}
+**Device:** ${device || '(not mentioned)'}
+**Created:** ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}
 
 
         `.trim();
@@ -319,35 +335,45 @@ function extractTaskInfo(text) {
     const title = generateSmartTitle(coreIssue, issueType);
     const description = generateComprehensiveDescription(coreIssue, issueType, isWideScope, troubleshooted, text);
     
-    return { title, description };
-}
-                       text.toLowerCase().includes('all vehicles') ||
-                       text.toLowerCase().includes('all trucks');
-    
-    // Extract troubleshooting evidence
-    const troubleshooted = text.toLowerCase().includes('restart') || 
-                          text.toLowerCase().includes('reinstall') ||
-                          text.toLowerCase().includes('restarted') ||
-                          text.toLowerCase().includes('reinstalled') ||
-                          text.toLowerCase().includes('tried');
-    
-    // Generate title and description
-    const title = generateSmartTitle(coreIssue, issueType, isWideScope);
-    const description = generateComprehensiveDescription(coreIssue, issueType, isWideScope, troubleshooted, text);
-    
-    return { title, description };
+    return { title, description, coreIssue, issueType, isWideScope };
 }
 
 // Generate smart professional title
-function generateSmartTitle(coreIssue, issueType, isWideScope) {
+function generateSmartTitle(coreIssue, issueType) {
     let title = '';
     
-    if (issueType === 'regression') {
-        title = `[REGRESSION] ${coreIssue} - Broken After Update`;
-    } else {
-        title = `[BUG] ${coreIssue} - Not Functioning`;
+    // Action verb mapping for better titles
+    const actionMap = {
+        'decal': 'Cannot Apply Decals',
+        'customization': 'Cannot Save Customizations',
+        'save': 'Cannot Save Data',
+        'load': 'Cannot Load Data',
+        'upload': 'Cannot Upload Files',
+        'download': 'Cannot Download Files',
+        'payment': 'Cannot Process Payment',
+        'login': 'Cannot Authenticate User',
+        'search': 'Search Not Working',
+        'video': 'Cannot Play Video',
+        'audio': 'Cannot Play Audio'
+    };
+    
+    // Find matching action verb
+    let actionVerb = 'Not Functioning';
+    const issueLower = coreIssue.toLowerCase();
+    for (const [keyword, action] of Object.entries(actionMap)) {
+        if (issueLower.includes(keyword)) {
+            actionVerb = action;
+            break;
+        }
     }
     
+    if (issueType === 'regression') {
+        title = `[REGRESSION] ${coreIssue} – ${actionVerb} After Update`;
+    } else {
+        title = `[BUG] ${coreIssue} – ${actionVerb}`;
+    }
+    
+
     if (title.length > 75) {
         title = title.substring(0, 72) + '...';
     }
@@ -477,6 +503,90 @@ function extractDevice(text) {
     }
     
     return '';
+}
+
+// Extract steps to reproduce from context
+function extractStepsToReproduce(text, coreIssue) {
+    const lower = text.toLowerCase();
+    
+    // Common step patterns for different features
+    const stepPatterns = {
+        decal: ['1. Open/access the game', '2. Navigate to truck customization', '3. Select the decals option', '4. Attempt to apply any decal'],
+        customization: ['1. Access customization menu', '2. Select the feature', '3. Try to apply changes', '4. Attempt to save/confirm'],
+        save: ['1. Create or modify content', '2. Attempt to save', '3. Check if saved data persists', '4. Reload/relaunch to verify'],
+        upload: ['1. Select file to upload', '2. Initiate upload process', '3. Wait for completion', '4. Verify upload status'],
+        music: ['1. Access audio settings', '2. Select audio option', '3. Play audio', '4. Verify sound output'],
+        video: ['1. Open media player', '2. Load video file', '3. Press play', '4. Verify playback'],
+        payment: ['1. Add item to cart', '2. Proceed to checkout', '3. Enter payment details', '4. Complete transaction'],
+        login: ['1. Open login screen', '2. Enter credentials', '3. Submit login', '4. Verify authentication'],
+        search: ['1. Open search feature', '2. Enter search term', '3. Execute search', '4. Review results']
+    };
+    
+    // Try to match feature to step pattern
+    const featureLower = coreIssue.toLowerCase();
+    for (const [keyword, steps] of Object.entries(stepPatterns)) {
+        if (featureLower.includes(keyword)) {
+            return steps.join('\n');
+        }
+    }
+    
+    // Generic fallback
+    return `1. Access the affected feature
+2. Perform the intended action
+3. Observe the issue
+4. Note any error messages or lack thereof`;
+}
+
+// Extract expected result from context
+function extractExpectedResult(text, coreIssue) {
+    const lower = text.toLowerCase();
+    
+    const resultPatterns = {
+        decal: 'Selected decal is applied and visible on the truck',
+        customization: 'Customization changes are applied and visible',
+        save: 'Data is saved and persists after reload',
+        upload: 'File is successfully uploaded and confirmed',
+        music: 'Audio plays clearly without interruption',
+        video: 'Video plays smoothly from start to finish',
+        payment: 'Transaction is processed and order is confirmed',
+        login: 'User is authenticated and granted access',
+        search: 'Relevant search results are displayed'
+    };
+    
+    // Try to match feature to expected result
+    const featureLower = coreIssue.toLowerCase();
+    for (const [keyword, result] of Object.entries(resultPatterns)) {
+        if (featureLower.includes(keyword)) {
+            return result;
+        }
+    }
+    
+    // Generic fallback
+    return `Feature functions as designed and produces expected output`;
+}
+
+// Extract actual result from text
+function extractActualResult(text) {
+    const lower = text.toLowerCase();
+    
+    let result = '';
+    
+    // Check for what actually happens
+    if (lower.includes('nothing shows') || lower.includes('nothing happens')) {
+        result = 'Nothing occurs; no visual feedback';
+    } else if (lower.includes('no error') || lower.includes('no feedback') || lower.includes('no message')) {
+        result = 'Feature silently fails with no error message or user feedback';
+    } else if (lower.includes('doesn\'t apply') || lower.includes('not applied')) {
+        result = 'Changes are not applied or reflected in the system';
+    } else if (lower.includes('crash') || lower.includes('freeze')) {
+        result = 'Application crashes or becomes unresponsive';
+    } else if (lower.includes('blank') || lower.includes('empty')) {
+        result = 'Feature displays blank or empty state';
+    } else {
+        result = 'Feature does not function as expected; issue manifests without clear error reporting';
+    }
+    
+    return result;
 }
 
 function enhanceText(text, tone) {
