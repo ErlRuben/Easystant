@@ -1,6 +1,7 @@
 // Panel Script - Handles UI and user interactions
 
 let selectedText = '';
+let currentTaskType = 'general';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const fixChatBtn = document.getElementById('fix-chat-btn');
@@ -13,6 +14,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const toneSelector = document.getElementById('tone-selector');
     const toneButtons = document.querySelectorAll('.tone-btn');
     const toneCancelBtn = document.getElementById('tone-cancel');
+    const taskTypeSelector = document.getElementById('task-type-selector');
+    const taskTypeButtons = document.querySelectorAll('.task-type-btn');
+    const taskCancelBtn = document.getElementById('task-cancel');
 
     // Check for selected text when panel opens
     chrome.storage.session.get('selectedText', (result) => {
@@ -44,10 +48,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         actionsSection.style.display = 'flex';
     });
 
+    // Task type buttons
+    taskTypeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const taskType = e.target.closest('.task-type-btn').dataset.type;
+            executeCreateTaskWithType(taskType);
+        });
+    });
+
+    // Task cancel button
+    taskCancelBtn.addEventListener('click', () => {
+        taskTypeSelector.style.display = 'none';
+        actionsSection.style.display = 'flex';
+    });
+
     function showToneSelector() {
         if (selectedText) {
             actionsSection.style.display = 'none';
             toneSelector.style.display = 'flex';
+        }
+    }
+
+    function showTaskTypeSelector() {
+        if (selectedText) {
+            actionsSection.style.display = 'none';
+            taskTypeSelector.style.display = 'flex';
         }
     }
 
@@ -68,12 +93,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function executeCreateTask() {
         if (selectedText) {
+            showTaskTypeSelector();
+        }
+    }
+
+    function executeCreateTaskWithType(taskType) {
+        if (selectedText) {
             try {
-                const result = createTask(selectedText);
+                currentTaskType = taskType;
+                const result = createTask(selectedText, taskType);
                 displayResult(result);
                 saveToStorage('createTask', result);
+                taskTypeSelector.style.display = 'none';
+                resultContainer.style.display = 'flex';
             } catch (error) {
                 displayError('Failed to create task: ' + error.message);
+                taskTypeSelector.style.display = 'none';
             }
         }
     }
@@ -92,7 +127,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Back Button
     backBtn.addEventListener('click', () => {
         resultContainer.style.display = 'none';
-        toneSelector.style.display = 'flex';
+        if (currentTaskType !== 'general' || currentTaskType) {
+            taskTypeSelector.style.display = 'flex';
+        } else {
+            toneSelector.style.display = 'flex';
+        }
     });
 
     function displayResult(result) {
@@ -132,25 +171,164 @@ Improved:
     }
 }
 
-// Create Task Feature
-function createTask(text) {
+// Create Task Feature - Routes to type-specific handlers
+function createTask(text, taskType = 'general') {
     try {
-        const { title, description, coreIssue, issueType, isWideScope } = extractTaskInfo(text);
-        const priority = suggestPriority(text);
-        const version = extractVersion(text);
-        const device = extractDevice(text);
-        const stepsToReproduce = extractStepsToReproduce(text, coreIssue);
-        const expectedResult = extractExpectedResult(text, coreIssue);
-        const actualResult = extractActualResult(text);
+        let result = '';
         
-        return `
-📋 TASK
+        switch(taskType) {
+            case 'document':
+                result = createDocumentTask(text);
+                break;
+            case 'business':
+                result = createBusinessTask(text);
+                break;
+            case 'support':
+                result = createSupportTask(text);
+                break;
+            case 'bug':
+                result = createBugTask(text);
+                break;
+            case 'general':
+            default:
+                result = createGeneralTask(text);
+                break;
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error('Failed to create task: ' + error.message);
+    }
+}
 
-**Title:**
-${title}
+// Document Task Template
+function createDocumentTask(text) {
+    const docInfo = extractDocumentInfo(text);
+    const priority = suggestPriority(text);
+    const deadline = extractDeadline(text);
+    
+    return `
+📄 DOCUMENT TASK
 
-**Description:**
-${description}
+**Task Title:**
+${docInfo.title}
+
+**Document Type:**
+${docInfo.type || 'Not specified'}
+
+**Task Description:**
+${docInfo.description}
+
+**Key Requirements:**
+${docInfo.requirements}
+
+**Deadline:**
+${deadline || '(no deadline specified)'}
+
+**Priority:** ${priority}
+**Status:** Not Started
+**Created:** ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}
+
+
+    `.trim();
+}
+
+// Business Task Template
+function createBusinessTask(text) {
+    const businessInfo = extractBusinessInfo(text);
+    const priority = suggestPriority(text);
+    const deadline = extractDeadline(text);
+    
+    return `
+💼 BUSINESS TASK
+
+**Objective:**
+${businessInfo.title}
+
+**Business Area:**
+${businessInfo.area || 'General Operations'}
+
+**Context:**
+${businessInfo.description}
+
+**Action Items:**
+${businessInfo.actionItems}
+
+**Stakeholders:**
+${businessInfo.stakeholders || 'TBD'}
+
+**Timeline:**
+${deadline || '(no specific deadline mentioned)'}
+
+**Priority:** ${priority}
+**Status:** Not Started
+**Created:** ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}
+
+
+    `.trim();
+}
+
+// Support Task Template
+function createSupportTask(text) {
+    const supportInfo = extractSupportInfo(text);
+    const priority = suggestPriority(text);
+    
+    return `
+👥 SUPPORT TASK
+
+**Issue:**
+${supportInfo.title}
+
+**Category:**
+${supportInfo.category}
+
+**Customer/Issue Details:**
+${supportInfo.details}
+
+**Impact:**
+${supportInfo.impact}
+
+**Urgency Level:**
+${supportInfo.urgency || 'Normal'}
+
+**Required Actions:**
+${supportInfo.actions}
+
+**Priority:** ${priority}
+**Status:** Open
+**Created:** ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}
+
+
+    `.trim();
+}
+
+// Bug Report Task Template
+function createBugTask(text) {
+    const bugInfo = extractTaskInfo(text);
+    const priority = suggestPriority(text);
+    const stepsToReproduce = extractStepsToReproduce(text, bugInfo.coreIssue);
+    const expectedResult = extractExpectedResult(text, bugInfo.coreIssue);
+    const actualResult = extractActualResult(text);
+    const device = extractDevice(text);
+    const version = extractVersion(text);
+    
+    return `
+🐛 BUG REPORT TASK
+
+**Issue Title:**
+${bugInfo.title}
+
+**Bug Description:**
+${bugInfo.description}
+
+**Affected Feature/System:**
+${bugInfo.coreIssue}
+
+**Issue Type:**
+${bugInfo.issueType === 'regression' ? '[REGRESSION] Previously Working Feature' : '[BUG] Technical Issue'}
+
+**Scope:**
+${bugInfo.isWideScope ? 'Multiple items/vehicles affected - system-wide issue' : 'Single item/occurrence'}
 
 **Steps to Reproduce:**
 ${stepsToReproduce}
@@ -161,20 +339,58 @@ ${expectedResult}
 **Actual Result:**
 ${actualResult}
 
-**Scope / Impact:**
-${isWideScope ? '* Affects entire system / all variations of the feature' : '* Issue may be isolated to specific conditions'}
-* Feature is completely non-functional in the affected area
+**Device/Platform:**
+${device || 'Not specified'}
+
+**Software Version:**
+${version || 'Not specified'}
+
+**Required Actions:**
+* [HIGH PRIORITY] Investigate root cause
+* Analyze differences from previous working version
+* Implement fix or rollback
+* Conduct regression testing
+* Validate fix across all affected systems
+* Communicate resolution to affected users
 
 **Priority:** ${priority}
-**Version:** ${version || 'Unknown (not mentioned)'}
-**Device:** ${device || '(not mentioned)'}
+**Status:** Open - Awaiting Investigation
+**Created:** ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}
+
+**Additional Notes:**
+${bugInfo.isWideScope ? 'This is a critical issue affecting multiple instances. Immediate investigation required.' : 'Investigate and implement fix.'}
+
+
+    `.trim();
+}
+
+// General Task Template
+function createGeneralTask(text) {
+    const generalInfo = extractGeneralInfo(text);
+    const priority = suggestPriority(text);
+    const deadline = extractDeadline(text);
+    
+    return `
+✓ TASK
+
+**Task:**
+${generalInfo.title}
+
+**Details:**
+${generalInfo.description}
+
+**What's needed:**
+${generalInfo.details}
+
+**Deadline:**
+${deadline || '(no deadline specified)'}
+
+**Priority:** ${priority}
+**Status:** Not Started
 **Created:** ${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}
 
 
-        `.trim();
-    } catch (error) {
-        throw new Error('Failed to create task: ' + error.message);
-    }
+    `.trim();
 }
 
 // Extract meaningful task title and description with AI inference
@@ -647,4 +863,400 @@ function saveToStorage(type, data) {
     } catch (error) {
         console.error('Storage error:', error);
     }
+}
+
+// Task Type Specific Extractors
+
+// Extract deadline from text
+function extractDeadline(text) {
+    const lower = text.toLowerCase();
+    
+    // Date patterns
+    const datePatterns = [
+        /(?:by|due|deadline|finish|complete|done)\s+(?:by\s+)?(?:tomorrow|today|tonight|this week|next week|end of week|end of month|next month)/i,
+        /(?:by|due|before|finish|complete)\s+(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/,
+        /(?:deadline|due date|duedate)[\s:]*(.+?)(?:\.|,|;|$)/i
+    ];
+    
+    for (const pattern of datePatterns) {
+        const match = text.match(pattern);
+        if (match) {
+            return match[1] || match[0].replace(/(?:by|due|before|deadline|duedate|finish|complete)\s*/i, '');
+        }
+    }
+    
+    return '';
+}
+
+// Extract Document Task Info - Intelligent parsing for document-related tasks
+function extractDocumentInfo(text) {
+    const lower = text.toLowerCase();
+    
+    // Detect document type with keyword patterns
+    const docTypes = {
+        'Report': ['report', 'summary', 'analysis', 'findings', 'white paper'],
+        'Spreadsheet': ['spreadsheet', 'excel', 'sheet', 'csv', 'data entry', 'table', 'calculations'],
+        'Proposal': ['proposal', 'pitch', 'bid', 'rfp'],
+        'Research': ['research', 'research paper', 'article', 'investigation', 'study', 'paper'],
+        'Email/Letter': ['email', 'letter', 'message', 'correspondence', 'note'],
+        'Presentation': ['presentation', 'slide', 'deck', 'powerpoint', 'slides', 'talk'],
+        'Form/Template': ['form', 'template', 'checklist', 'questionnaire']
+    };
+    
+    let docType = 'Document';
+    for (const [type, keywords] of Object.entries(docTypes)) {
+        for (const keyword of keywords) {
+            if (lower.includes(keyword)) {
+                docType = type;
+                break;
+            }
+        }
+    }
+    
+    // Extract main objective - look for action verbs
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const actionVerbs = ['create', 'write', 'update', 'prepare', 'compile', 'draft', 'generate', 'develop', 'build'];
+    const titleSentence = sentences.find(s => {
+        const sl = s.toLowerCase();
+        return actionVerbs.some(verb => sl.includes(verb));
+    }) || sentences[0];
+    
+    let title = titleSentence ? titleSentence.trim() : 'Document Task';
+    if (title.length > 85) {
+        title = title.substring(0, 82) + '...';
+    }
+    
+    // Extract requirements - look for specific details needed
+    let requirements = '* Clear and accurate content\n* Professional formatting\n* Proper structure and organization';
+    
+    // Check for specific requirements mentioned
+    const includeMatch = text.match(/(?:include|contain|with|must have|should have|need)\s+([^.!?]+)/i);
+    const formatMatch = text.match(/(?:format|style|structure|layout)\s+([^.!?]+)/i);
+    const qualityMatch = text.match(/(?:quality|requirements|standards|guidelines)\s+([^.!?]+)/i);
+    
+    if (includeMatch || formatMatch || qualityMatch) {
+        requirements = '';
+        if (includeMatch) {
+            requirements += '* Include: ' + includeMatch[1].trim() + '\n';
+        }
+        if (formatMatch) {
+            requirements += '* Format: ' + formatMatch[1].trim() + '\n';
+        }
+        if (qualityMatch) {
+            requirements += '* Quality: ' + qualityMatch[1].trim() + '\n';
+        }
+        requirements = requirements.trim();
+    }
+    
+    // Extract description
+    const description = text.length > 180 ? text.substring(0, 177) + '...' : text;
+    
+    return { title, type: docType, description, requirements };
+}
+
+// Extract Business Task Info - Intelligent parsing for business-related tasks
+function extractBusinessInfo(text) {
+    const lower = text.toLowerCase();
+    
+    // Step 1: Filter out dialogue filler
+    const dialogueFiller = /^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|uh|um|like|so|but|and|well)/i;
+    const sentences = text.split(/[.!?]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 5 && !dialogueFiller.test(s));
+    
+    // Step 2: Find the main objective/goal
+    const goalPatterns = [
+        /(?:need to|objective|goal|plan|schedule|organize|coordinate|arrange|finalize)\s+([^.!?]+)/i,
+        /(?:need|must|should)(?:\s+(?:we|i|you|they))?\s+([^.!?]+)/i
+    ];
+    
+    let title = 'Business Task';
+    let objective = '';
+    
+    for (const pattern of goalPatterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+            objective = match[1].trim();
+            title = objective.substring(0, 85);
+            break;
+        }
+    }
+    
+    // If no pattern match, use first meaningful sentence
+    if (!objective && sentences.length > 0) {
+        const firstSent = sentences[0].trim();
+        title = firstSent.length > 85 ? firstSent.substring(0, 82) + '...' : firstSent;
+        objective = firstSent;
+    }
+    
+    // Step 3: Detect business area
+    const areaMap = {
+        'HR & Recruitment': ['hiring', 'recruitment', 'employee', 'onboarding', 'hr', 'human resources', 'interview', 'staff'],
+        'Finance': ['budget', 'finance', 'accounting', 'invoice', 'payroll', 'cost', 'expense', 'money', 'fund'],
+        'Marketing': ['marketing', 'campaign', 'social media', 'content', 'advertising', 'brand', 'launch', 'promote'],
+        'Sales': ['sales', 'client', 'deal', 'prospect', 'customer', 'revenue', 'pipeline', 'contract'],
+        'Operations': ['operations', 'process', 'workflow', 'efficiency', 'streamline', 'organize', 'manage', 'coordinate'],
+        'IT & Technology': ['technical', 'system', 'platform', 'infrastructure', 'technology', 'it', 'dev', 'software'],
+        'Product Development': ['product', 'feature', 'development', 'roadmap', 'release', 'build', 'design']
+    };
+    
+    let area = 'Business Operations';
+    for (const [zone, keywords] of Object.entries(areaMap)) {
+        for (const keyword of keywords) {
+            if (lower.includes(keyword)) {
+                area = zone;
+                break;
+            }
+        }
+    }
+    
+    // Step 4: Extract action items - look for keywords: "need", "schedule", "organize", "plan", "coordinate", "finalize"
+    const actionKeywords = ['need', 'schedule', 'organize', 'plan', 'coordinate', 'finalize', 'arrange', 'set up', 'prepare', 'complete'];
+    let actionItems = '* Define objectives and timeline\n* Assign responsibilities\n* Execute plan\n* Monitor progress\n* Review results';
+    
+    // Look for action-oriented sentences
+    const actionSentences = sentences.filter(s => {
+        const sl = s.toLowerCase();
+        return actionKeywords.some(keyword => sl.includes(keyword));
+    });
+    
+    if (actionSentences.length > 0) {
+        actionItems = actionSentences.slice(0, 5).map((sent, i) => {
+            const cleaned = sent.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
+            return '* ' + cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        }).join('\n');
+    }
+    
+    // Step 5: Find stakeholders - look for patterns like "with team", "involve manager"
+    let stakeholders = 'TBD - Team to be assigned';
+    const stakeholderPatterns = [
+        /(?:with|involve|notify|assign|team|lead|manager)\s+([^.!?,;]+)/i,
+        /(?:team|department|group)\s+(?:of|in)\s+([^.!?,;]+)/i
+    ];
+    
+    for (const pattern of stakeholderPatterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+            stakeholders = match[1].trim();
+            break;
+        }
+    }
+    
+    const description = sentences.slice(0, 2).join(' ').trim();
+    const descriptionText = description.length > 220 ? description.substring(0, 217) + '...' : (description || text.substring(0, 217));
+    
+    return { 
+        title, 
+        description: descriptionText, 
+        actionItems, 
+        stakeholders, 
+        area,
+        objective
+    };
+}
+
+// Extract Support Task Info - Intelligent parsing for customer support issues
+function extractSupportInfo(text) {
+    const lower = text.toLowerCase();
+    
+    // Step 1: Filter out dialogue filler
+    const dialogueFiller = /^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|uh|um|like|so|but|and|well)/i;
+    const sentences = text.split(/[.!?]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 5 && !dialogueFiller.test(s));
+    
+    // Step 2: Extract the broken feature
+    const featureKeywords = {
+        'decal': 'Decal System',
+        'customization': 'Customization System',
+        'texture': 'Texture System',
+        'save': 'Save/Persistence System',
+        'load': 'Loading System',
+        'render': 'Rendering System',
+        'upload': 'Upload System',
+        'download': 'Download System',
+        'payment': 'Payment System',
+        'login': 'Authentication System',
+        'search': 'Search System',
+        'sync': 'Sync System'
+    };
+    
+    let brokenFeature = 'Feature';
+    for (const [keyword, feature] of Object.entries(featureKeywords)) {
+        if (lower.includes(keyword)) {
+            brokenFeature = feature;
+            break;
+        }
+    }
+    
+    // Step 3: Detect if it's a regression (worked before, broken now)
+    const regressionKeywords = ['worked before', 'worked last', 'used to work', 'previously', 'literally', 'yes', 'it was working', 'did work', 'was working'];
+    const isRegression = regressionKeywords.some(keyword => lower.includes(keyword));
+    
+    // Step 4: Extract meaningful title - prioritize problem statements over dialogue
+    let title = isRegression 
+        ? `${brokenFeature} not working - Regression`
+        : `${brokenFeature} not working`;
+    
+    // Try to extract more context from problem statement sentences
+    const problemStatements = sentences.filter(s => {
+        const sl = s.toLowerCase();
+        return (sl.includes('cannot') || sl.includes('can\'t') || sl.includes('doesn\'t') || 
+               sl.includes('not working') || sl.includes('broken'));
+    });
+    
+    // If we have problem statements, look for one that also mentions the feature
+    let selectedStatement = null;
+    
+    if (problemStatements.length > 0) {
+        // First, look for problem statement that mentions the feature
+        selectedStatement = problemStatements.find(s => s.toLowerCase().includes(brokenFeature.toLowerCase().split(' ')[0]));
+        
+        // If not found, use the first one
+        if (!selectedStatement) {
+            selectedStatement = problemStatements[0];
+        }
+    }
+    
+    if (selectedStatement) {
+        let cleanedSentence = selectedStatement
+            .replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like|bro|dude|hey|man|seriously|i swear|why|can\'t\s+i|can't\s+i|does\s+(?:not|n\'t)|how\s+come)\s+/i, '')
+            .trim()
+            .replace(/\?+$/, ''); // Remove trailing question marks
+        
+        // For common patterns, extract just the meaningful part
+        if (cleanedSentence.includes('place') && cleanedSentence.includes('decal')) {
+            cleanedSentence = 'Cannot place decals';
+        } else if (cleanedSentence.includes('apply') && cleanedSentence.includes('decal')) {
+            cleanedSentence = 'Cannot apply decals';
+        }
+        
+        if (cleanedSentence.length > 10 && cleanedSentence.length < 90) {
+            title = cleanedSentence.charAt(0).toUpperCase() + cleanedSentence.slice(1);
+        }
+    }
+    
+    // Step 5: Detect impact (single vs multiple vs widespread)
+    const multipleIndicators = ['tried a different', 'all ', 'not just', 'whole ', 'everyone', 'multiple', 'both', 'saw someone else'];
+    const hasMultipleImpact = multipleIndicators.some(indicator => lower.includes(indicator));
+    
+    let impact = 'Single user/occurrence';
+    if (lower.includes('multiple') || lower.includes('all vehicles') || lower.includes('all trucks')) {
+        impact = 'Multiple items/users affected - System-wide issue';
+    } else if (lower.includes('not just one') || lower.includes('tried a different') || lower.includes('saw someone else') || lower.includes('not just me')) {
+        impact = 'Multiple users/items affected';
+    } else if (lower.includes('everyone') || lower.includes('widespread') || lower.includes('global')) {
+        impact = 'Widespread impact - Critical scope';
+    }
+    
+    // Step 6: Detect category
+    const categoryMap = {
+        'Feature Issue': ['feature', 'system', 'decal', 'customization', 'texture'],
+        'Technical Error': ['error', 'bug', 'broken', 'crash', 'not working'],
+        'Regression': ['regression', 'worked before', 'stopped working'],
+        'Data issue': ['data', 'save', 'load', 'sync'],
+        'Performance Issue': ['slow', 'lag', 'freeze', 'delay'],
+        'General Support': ['issue', 'problem', 'help']
+    };
+    
+    let category = 'Technical Error';
+    if (isRegression) {
+        category = 'Regression - Feature Broken';
+    } else {
+        for (const [cat, keywords] of Object.entries(categoryMap)) {
+            if (keywords.some(keyword => lower.includes(keyword))) {
+                category = cat;
+                break;
+            }
+        }
+    }
+    
+    // Step 7: Check urgency
+    let urgency = 'Normal';
+    if (lower.includes('broken') || lower.includes('not working') || isRegression) {
+        urgency = 'High';
+    }
+    if (lower.includes('urgent') || lower.includes('critical') || lower.includes('immediately') || lower.includes('asap')) {
+        urgency = 'Critical/Urgent';
+    }
+    
+    // Step 8: Extract required actions
+    let actions = '* Verify issue reproduction\n* Investigate root cause\n* Implement fix or workaround\n* Test resolution\n* Update customer';
+    
+    if (isRegression) {
+        actions = '* [HIGH PRIORITY] Analyze recent changes\n* Identify what broke in last update\n* Implement rollback or fix\n* Extensive regression testing\n* Deploy fix immediately';
+    }
+    
+    if (hasMultipleImpact || impact.includes('Multiple') || impact.includes('Widespread')) {
+        actions = '* [CRITICAL] Escalate immediately\n' + actions;
+    }
+    
+    const details = sentences.slice(0, 3).join(' ').trim();
+    const detailsText = details.length > 180 ? details.substring(0, 177) + '...' : (details || text);
+    
+    return { 
+        title, 
+        category, 
+        details: detailsText, 
+        impact, 
+        actions, 
+        urgency,
+        isRegression,
+        brokenFeature
+    };
+}
+
+// Extract General Task Info - Flexible parsing for general/miscellaneous tasks
+function extractGeneralInfo(text) {
+    // Step 1: Filter out dialogue filler
+    const dialogueFiller = /^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|uh|um|like|so|but|and|well)/i;
+    const sentences = text.split(/[.!?]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 5 && !dialogueFiller.test(s));
+    
+    // Step 2: Generate title from first meaningful sentence
+    let title = 'Task';
+    if (sentences.length > 0) {
+        const firstSentence = sentences[0].trim();
+        // Remove dialogue filler from the beginning if still present
+        const cleanedSentence = firstSentence.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
+        title = cleanedSentence.length > 85 ? cleanedSentence.substring(0, 82) + '...' : (cleanedSentence || firstSentence);
+    }
+    
+    // Step 3: Extract "details" field by looking for patterns with "need", "required", "must", "should"
+    let details = 'Complete as described';
+    const detailPatterns = [
+        /(?:need|required|must|should|have to)\s+([^.!?]+?)(?:\.|,|;|and|or|$)/i,
+        /(?:to|in order to)\s+([^.!?]+?)(?:\.|,|;|and|or|$)/i
+    ];
+    
+    for (const pattern of detailPatterns) {
+        const match = text.match(pattern);
+        if (match && match[1] && match[1].length > 5) {
+            details = match[1].trim();
+            if (details.length > 150) {
+                details = details.substring(0, 147) + '...';
+            }
+            break;
+        }
+    }
+    
+    // If no match found, extract from a meaningful sentence
+    if (details === 'Complete as described' && sentences.length > 1) {
+        const meaningfulSent = sentences.find(s => {
+            const lower = s.toLowerCase();
+            return lower.includes('need') || lower.includes('required') || lower.includes('must') || 
+                   lower.includes('should') || lower.includes('want') || lower.includes('make');
+        });
+        
+        if (meaningfulSent) {
+            const cleaned = meaningfulSent.replace(/^(yeah|yep|true|ok|okay|no|nah|wait|what|lol|well|um|uh|so|but|and|like)\s+/i, '').trim();
+            details = cleaned;
+        }
+    }
+    
+    const description = sentences.slice(0, 2).join(' ').trim();
+    const descriptionText = description.length > 220 ? description.substring(0, 217) + '...' : (description || text.substring(0, 217));
+    
+    return { title, description: descriptionText, details };
 }

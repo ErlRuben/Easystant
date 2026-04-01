@@ -41,6 +41,19 @@
             <button id="tone-cancel" class="tone-cancel">Cancel</button>
         </section>
 
+        <section id="task-type-selector" class="task-type-selector" style="display: none;">
+            <p class="task-label">Choose task type:</p>
+            <div class="task-type-buttons">
+                <button class="task-type-btn" data-type="document">📄 Document</button>
+                <button class="task-type-btn" data-type="business">💼 Business</button>
+                <button class="task-type-btn" data-type="support">👥 Support</button>
+                <button class="task-type-btn" data-type="bug">🐛 Bug Report</button>
+                <button class="task-type-btn" data-type="general">✓ General Task</button>
+            </div>
+            <p class="task-hint">Or choose General Task if unsure</p>
+            <button id="task-cancel" class="task-cancel">Cancel</button>
+        </section>
+
         <div id="result-container" class="result-container" style="display: none;">
             <div id="result-content" class="result-content"></div>
             <div class="result-actions">
