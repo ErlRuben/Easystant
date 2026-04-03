@@ -1,112 +1,247 @@
-// api/create-task.js - Vercel serverless function for Create Task feature
+// createTask.js - Create Task feature: calls Vercel backend for AI-powered task generation
 
-export default async function handler(req, res) {
-    // Only allow POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+var BACKEND_URL = 'https://easystant.vercel.app'; // ← replace with your Vercel URL after deploy
 
-    const { text, taskType } = req.body;
-
-    // Validate inputs
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        return res.status(400).json({ error: 'Missing or invalid text' });
-    }
-    if (!taskType || !['bug', 'support', 'general'].includes(taskType)) {
-        return res.status(400).json({ error: 'Invalid taskType. Must be bug, support, or general' });
-    }
-
-    const prompts = {
-        bug: `You are a software QA engineer. Extract a structured bug report from the following text.
-
-Return ONLY a valid JSON object with exactly these fields:
-{
-  "title": "concise bug title under 75 chars, prefixed with [BUG] or [REGRESSION] if applicable",
-  "description": "clear 2-3 sentence description of the issue",
-  "coreIssue": "the specific feature or system affected",
-  "issueType": "bug or regression",
-  "stepsToReproduce": "numbered steps as a single string separated by newlines",
-  "expectedResult": "what should happen",
-  "actualResult": "what actually happens",
-  "priority": "HIGH, MEDIUM, or NORMAL"
-}
-
-Text to analyze:
-${text.trim()}`,
-
-        support: `You are a customer support specialist. Extract a structured support ticket from the following text.
-
-Return ONLY a valid JSON object with exactly these fields:
-{
-  "title": "concise issue title under 75 chars",
-  "category": "one of: Technical Error, Performance Issue, Data Issue, Feature Issue, Regression - Feature Broken",
-  "details": "2-3 sentence summary of the issue",
-  "impact": "who or what is affected",
-  "urgency": "Normal, High, or Critical/Urgent",
-  "actions": "required actions as bullet points separated by newlines starting with *",
-  "priority": "HIGH, MEDIUM, or NORMAL"
-}
-
-Text to analyze:
-${text.trim()}`,
-
-        general: `You are a project manager. Extract a structured task from the following text.
-
-Return ONLY a valid JSON object with exactly these fields:
-{
-  "title": "concise task title under 75 chars",
-  "description": "2-3 sentence description of what needs to be done",
-  "details": "specific requirements or details needed to complete the task",
-  "deadline": "extracted deadline if mentioned, or null",
-  "priority": "HIGH, MEDIUM, or NORMAL"
-}
-
-Text to analyze:
-${text.trim()}`
-    };
-
+/**
+ * Create Task: Generate structured task using Claude AI via backend
+ * @param {string} text - The selected text
+ * @param {string} taskType - 'bug' | 'support' | 'general'
+ * @returns {Promise<string>} - Formatted task output
+ */
+async function createTask(text, taskType = 'general') {
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch(`${BACKEND_URL}/api/create-task`, {
             method: 'POST',
-            headers: {
-                'Content-Type':      'application/json',
-                'x-api-key':         process.env.ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model:      'claude-haiku-4-5-20251001',
-                max_tokens: 1000,
-                messages: [{
-                    role:    'user',
-                    content: prompts[taskType]
-                }]
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, taskType })
         });
 
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('Anthropic API error:', error);
-            return res.status(502).json({ error: 'AI service error. Please try again.' });
-        }
-
         const data = await response.json();
-        const rawText = data.content[0].text.trim();
 
-        // Parse JSON response from Claude
-        let parsed;
-        try {
-            // Strip markdown code fences if Claude added them
-            const clean = rawText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-            parsed = JSON.parse(clean);
-        } catch (parseError) {
-            console.error('Failed to parse Claude response:', rawText);
-            return res.status(502).json({ error: 'Failed to parse AI response. Please try again.' });
+        if (!response.ok) {
+            throw new Error(data.error || 'Request failed');
         }
 
-        return res.status(200).json({ result: parsed, taskType });
+        // Format the AI-parsed result into the appropriate template
+        return formatTask(data.result, taskType);
 
     } catch (error) {
-        console.error('create-task handler error:', error);
-        return res.status(500).json({ error: 'Internal server error. Please try again.' });
+        // Fallback to local extraction if backend is unavailable
+        console.warn('Backend unavailable, using local fallback:', error.message);
+        return createTaskLocally(text, taskType);
     }
+}
+
+/**
+ * Format AI-parsed task data into display template
+ */
+function formatTask(parsed, taskType) {
+    const now = getCurrentTimestamp();
+
+    switch (taskType) {
+        case 'bug':
+            return `
+🐛 BUG REPORT TASK
+
+**Issue Title:**
+${parsed.title}
+
+**Bug Description:**
+${parsed.description}
+
+**Affected Feature/System:**
+${parsed.coreIssue}
+
+**Issue Type:**
+${parsed.issueType === 'regression' ? '[REGRESSION] Previously Working Feature' : '[BUG] Technical Issue'}
+
+**Steps to Reproduce:**
+${parsed.stepsToReproduce}
+
+**Expected Result:**
+${parsed.expectedResult}
+
+**Actual Result:**
+${parsed.actualResult}
+
+**Priority:** ${parsed.priority}
+**Status:** Open - Awaiting Investigation
+**Created:** ${now.date} ${now.time}
+            `.trim();
+
+        case 'support':
+            return `
+👥 SUPPORT TASK
+
+**Issue:**
+${parsed.title}
+
+**Category:**
+${parsed.category}
+
+**Customer/Issue Details:**
+${parsed.details}
+
+**Impact:**
+${parsed.impact}
+
+**Urgency Level:**
+${parsed.urgency}
+
+**Required Actions:**
+${parsed.actions}
+
+**Priority:** ${parsed.priority}
+**Status:** Open
+**Created:** ${now.date} ${now.time}
+            `.trim();
+
+        case 'general':
+        default:
+            return `
+✓ TASK
+
+**Task:**
+${parsed.title}
+
+**Details:**
+${parsed.description}
+
+**What's needed:**
+${parsed.details}
+
+**Deadline:**
+${parsed.deadline || '(no deadline specified)'}
+
+**Priority:** ${parsed.priority}
+**Status:** Not Started
+**Created:** ${now.date} ${now.time}
+            `.trim();
+    }
+}
+
+/**
+ * Local fallback when backend is unavailable
+ */
+function createTaskLocally(text, taskType) {
+    try {
+        switch (taskType) {
+            case 'support': return createSupportTask(text);
+            case 'bug':     return createBugTask(text);
+            case 'general':
+            default:        return createGeneralTask(text);
+        }
+    } catch (error) {
+        throw new Error('Failed to create task: ' + error.message);
+    }
+}
+
+// --- Local fallback task builders (regex-based) ---
+
+function createBugTask(text) {
+    const bugInfo          = extractTaskInfo(text);
+    const priority         = suggestPriority(text);
+    const stepsToReproduce = extractStepsToReproduce(text, bugInfo.coreIssue);
+    const expectedResult   = extractExpectedResult(text, bugInfo.coreIssue);
+    const actualResult     = extractActualResult(text);
+    const device           = extractDevice(text);
+    const version          = extractVersion(text);
+    const { date, time }   = getCurrentTimestamp();
+
+    return `
+🐛 BUG REPORT TASK (offline mode)
+
+**Issue Title:**
+${bugInfo.title}
+
+**Bug Description:**
+${bugInfo.description}
+
+**Affected Feature/System:**
+${bugInfo.coreIssue}
+
+**Issue Type:**
+${bugInfo.issueType === 'regression' ? '[REGRESSION] Previously Working Feature' : '[BUG] Technical Issue'}
+
+**Scope:**
+${bugInfo.isWideScope ? 'Multiple items affected - system-wide issue' : 'Single item/occurrence'}
+
+**Steps to Reproduce:**
+${stepsToReproduce}
+
+**Expected Result:**
+${expectedResult}
+
+**Actual Result:**
+${actualResult}
+
+**Device/Platform:**
+${device || 'Not specified'}
+
+**Software Version:**
+${version || 'Not specified'}
+
+**Priority:** ${priority}
+**Status:** Open - Awaiting Investigation
+**Created:** ${date} ${time}
+    `.trim();
+}
+
+function createSupportTask(text) {
+    const supportInfo    = extractSupportInfo(text);
+    const priority       = suggestPriority(text);
+    const { date, time } = getCurrentTimestamp();
+
+    return `
+👥 SUPPORT TASK (offline mode)
+
+**Issue:**
+${supportInfo.title}
+
+**Category:**
+${supportInfo.category}
+
+**Customer/Issue Details:**
+${supportInfo.details}
+
+**Impact:**
+${supportInfo.impact}
+
+**Urgency Level:**
+${supportInfo.urgency || 'Normal'}
+
+**Required Actions:**
+${supportInfo.actions}
+
+**Priority:** ${priority}
+**Status:** Open
+**Created:** ${date} ${time}
+    `.trim();
+}
+
+function createGeneralTask(text) {
+    const generalInfo    = extractGeneralInfo(text);
+    const priority       = suggestPriority(text);
+    const deadline       = extractDeadline(text);
+    const { date, time } = getCurrentTimestamp();
+
+    return `
+✓ TASK (offline mode)
+
+**Task:**
+${generalInfo.title}
+
+**Details:**
+${generalInfo.description}
+
+**What's needed:**
+${generalInfo.details}
+
+**Deadline:**
+${deadline || '(no deadline specified)'}
+
+**Priority:** ${priority}
+**Status:** Not Started
+**Created:** ${date} ${time}
+    `.trim();
 }

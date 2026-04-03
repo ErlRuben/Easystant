@@ -1,6 +1,6 @@
 // fixChat.js - Fix Chat feature: calls Vercel backend for AI-powered rewriting
 
-const BACKEND_URL = 'https://your-project.vercel.app'; // ← replace with your Vercel URL after deploy
+var BACKEND_URL = 'https://easystant.vercel.app'; // ← replace with your Vercel URL after deploy
 
 /**
  * Fix Chat: Improve communication using Claude AI via backend
@@ -23,7 +23,7 @@ async function fixChat(text, tone = 'professional') {
         }
 
         return `
-📝 FIXED CHAT
+FIXED CHAT
 
 Tone: ${tone.toUpperCase()}
 
@@ -39,7 +39,7 @@ Improved:
         console.warn('Backend unavailable, using local fallback:', error.message);
         const improved = enhanceTextLocally(text, tone);
         return `
-📝 FIXED CHAT (offline mode)
+FIXED CHAT (offline mode)
 
 Tone: ${tone.toUpperCase()}
 
