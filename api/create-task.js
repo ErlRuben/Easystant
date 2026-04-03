@@ -1,4 +1,4 @@
-// api/create-task.js - Vercel serverless function for Create Task feature
+// api/create-task.js - Vercel serverless function using Google Gemini
 
 export default async function handler(req, res) {
     // Handle CORS preflight
@@ -9,25 +9,23 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    // Only allow POST
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     const { text, taskType } = req.body;
 
-    // Validate inputs
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
         return res.status(400).json({ error: 'Missing or invalid text' });
     }
     if (!taskType || !['bug', 'support', 'general'].includes(taskType)) {
-        return res.status(400).json({ error: 'Invalid taskType. Must be bug, support, or general' });
+        return res.status(400).json({ error: 'Invalid taskType' });
     }
 
     const prompts = {
         bug: `You are a software QA engineer. Extract a structured bug report from the following text.
 
-Return ONLY a valid JSON object with exactly these fields:
+Return ONLY a valid JSON object with exactly these fields, no markdown, no code fences, no explanation:
 {
   "title": "concise bug title under 75 chars, prefixed with [BUG] or [REGRESSION] if applicable",
   "description": "clear 2-3 sentence description of the issue",
@@ -44,7 +42,7 @@ ${text.trim()}`,
 
         support: `You are a customer support specialist. Extract a structured support ticket from the following text.
 
-Return ONLY a valid JSON object with exactly these fields:
+Return ONLY a valid JSON object with exactly these fields, no markdown, no code fences, no explanation:
 {
   "title": "concise issue title under 75 chars",
   "category": "one of: Technical Error, Performance Issue, Data Issue, Feature Issue, Regression - Feature Broken",
@@ -60,7 +58,7 @@ ${text.trim()}`,
 
         general: `You are a project manager. Extract a structured task from the following text.
 
-Return ONLY a valid JSON object with exactly these fields:
+Return ONLY a valid JSON object with exactly these fields, no markdown, no code fences, no explanation:
 {
   "title": "concise task title under 75 chars",
   "description": "2-3 sentence description of what needs to be done",
@@ -74,39 +72,39 @@ ${text.trim()}`
     };
 
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type':      'application/json',
-                'x-api-key':         process.env.ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model:      'claude-haiku-4-5-20251001',
-                max_tokens: 1000,
-                messages: [{
-                    role:    'user',
-                    content: prompts[taskType]
-                }]
-            })
-        });
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: prompts[taskType] }]
+                    }],
+                    generationConfig: {
+                        maxOutputTokens: 1000,
+                        temperature: 0.3
+                    }
+                })
+            }
+        );
 
         if (!response.ok) {
             const error = await response.json();
-            console.error('Anthropic API error:', error);
-            return res.status(502).json({ error: 'AI service error. Please try again.' });
+            console.error('Gemini API error:', error);
+            return res.status(502).json({ error: 'AI service error. Please try again.', detail: error });
         }
 
         const data = await response.json();
-        const rawText = data.content[0].text.trim();
+        const rawText = data.candidates[0].content.parts[0].text.trim();
 
-        // Parse JSON — strip markdown fences if Claude added them
+        // Parse JSON — strip markdown fences if model added them
         let parsed;
         try {
-            const clean = rawText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+            const clean = rawText.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim();
             parsed = JSON.parse(clean);
         } catch (parseError) {
-            console.error('Failed to parse Claude response:', rawText);
+            console.error('Failed to parse Gemini response:', rawText);
             return res.status(502).json({ error: 'Failed to parse AI response. Please try again.' });
         }
 

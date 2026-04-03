@@ -1,4 +1,5 @@
 // panel.js - UI only: event listeners, display, and flow control
+
 // UI state
 let selectedText = '';
 let currentFlow  = null; // 'fixChat' | 'createTask'
@@ -8,6 +9,7 @@ function escapeHTML(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Element references ---
@@ -103,44 +105,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Feature execution ---
 
-    function executeFixChat(tone = 'professional') {
+    async function executeFixChat(tone = 'professional') {
         if (!selectedText) return;
+        toneSelector.style.display = 'none';
+        displayLoading('Fixing your message...');
         try {
-            const result = fixChat(selectedText, tone);
+            const result = await fixChat(selectedText, tone);
             displayResult(result);
             saveToStorage('fixChat', result);
-            toneSelector.style.display = 'none';
-            resultContainer.style.display = 'flex';
         } catch (error) {
             displayError('Failed to fix chat: ' + error.message);
-            toneSelector.style.display = 'none';
         }
     }
 
-    function executeCreateTask(taskType) {
+    async function executeCreateTask(taskType) {
         if (!selectedText) return;
+        taskTypeSelector.style.display = 'none';
+        displayLoading('Generating task...');
         try {
-            const result = createTask(selectedText, taskType);
+            const result = await createTask(selectedText, taskType);
             displayResult(result);
             saveToStorage('createTask', result);
-            taskTypeSelector.style.display = 'none';
-            resultContainer.style.display = 'flex';
         } catch (error) {
             displayError('Failed to create task: ' + error.message);
-            taskTypeSelector.style.display = 'none';
         }
     }
 
     // --- Display helpers ---
 
+    function displayLoading(message) {
+        resultContent.innerHTML = `<p class="loading-text">⏳ ${escapeHTML(message)}</p>`;
+        resultContainer.style.display = 'flex';
+        copyBtn.style.display = 'none';
+        backBtn.style.display = 'none';
+    }
+
     function displayResult(result) {
         resultContent.innerHTML = `<pre>${escapeHTML(result)}</pre>`;
         resultContainer.style.display = 'flex';
+        copyBtn.style.display = '';
+        backBtn.style.display = '';
     }
 
     function displayError(message) {
         resultContent.innerHTML = `<p style="color: #e74c3c;">${escapeHTML(message)}</p>`;
         resultContainer.style.display = 'flex';
+        copyBtn.style.display = 'none';
+        backBtn.style.display = '';
     }
 
 });
