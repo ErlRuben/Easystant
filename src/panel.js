@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultContent     = document.getElementById('result-content');
     const copyBtn           = document.getElementById('copy-btn');
     const backBtn           = document.getElementById('back-btn');
+    const historyBtn        = document.getElementById('history-btn');
 
     // --- Load selected text from session storage ---
     chrome.storage.session.get('selectedText', (result) => {
@@ -101,6 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             actionsSection.style.display = 'flex';
         }
+    });
+
+    // --- History button ---
+    historyBtn.addEventListener('click', () => {
+        window.location.replace(chrome.runtime.getURL('public/history.html'));
     });
 
     // --- Feature execution ---

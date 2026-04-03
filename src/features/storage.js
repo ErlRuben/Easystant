@@ -1,17 +1,28 @@
-// storage.js - Chrome storage management
+// storage.js - Chrome local storage + Supabase history
 
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 20;
 
 /**
- * Save a generated result to local history
+ * Save result to both Chrome local storage and Supabase
  * @param {'fixChat' | 'createTask'} type
- * @param {string} data
+ * @param {string} output - Full output text
  */
-function saveToStorage(type, data) {
+function saveToStorage(type, output) {
+    // Generate preview — first 120 chars of output
+    const preview = output.replace(/\*\*/g, '').substring(0, 120).trim() + (output.length > 120 ? '...' : '');
+
+    // Save to Supabase via backend
+    fetch(`${BACKEND_URL}/api/history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, output, preview })
+    }).catch(err => console.warn('Failed to save to Supabase:', err.message));
+
+    // Also save to Chrome local storage as backup
     try {
         const item = {
             type,
-            data,
+            data: output,
             timestamp: new Date().toISOString()
         };
 
@@ -19,7 +30,6 @@ function saveToStorage(type, data) {
             const history = result.history || [];
             history.push(item);
 
-            // Trim to max history size
             while (history.length > MAX_HISTORY) {
                 history.shift();
             }
@@ -27,9 +37,7 @@ function saveToStorage(type, data) {
             chrome.storage.local.set({ history }, () => {
                 if (chrome.runtime.lastError) {
                     console.error('Storage save error:', chrome.runtime.lastError);
-                    return;
                 }
-                console.log(`Saved ${type} to history`);
             });
         });
     } catch (error) {
