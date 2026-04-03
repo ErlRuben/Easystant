@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <header>
-            <img src="icons/Recon Tech Logo.png" alt="Easystant Logo" class="logo">
+            <img src="icons/recon-tech-logo.png" alt="Easystant Logo" class="logo">
             <h1>Easystant</h1>
             <p class="subtitle">AI Assistant for Software Development</p>
         </header>
@@ -54,15 +54,15 @@
             <p class="task-label">Choose task type:</p>
             <div class="task-type-buttons">
                 <div class="tooltip-container">
-                    <button class="task-type-btn" data-type="bug">🐛 Bug Report</button>
+                    <button class="task-type-btn" data-type="bug">Bug Report</button>
                     <span class="tooltip-text">For reporting software bugs, errors, crashes, and technical issues</span>
                 </div>
                 <div class="tooltip-container">
-                    <button class="task-type-btn" data-type="support">👥 Support</button>
+                    <button class="task-type-btn" data-type="support">Support</button>
                     <span class="tooltip-text">For customer support issues and technical problems</span>
                 </div>
                 <div class="tooltip-container">
-                    <button class="task-type-btn" data-type="general">✓ General Task</button>
+                    <button class="task-type-btn" data-type="general">General Task</button>
                     <span class="tooltip-text">For non-development tasks like notes, reminders, project management</span>
                 </div>
             </div>
@@ -79,6 +79,11 @@
         </div>
     </div>
 
+    <script src="../src/features/utils.js"></script>
+    <script src="../src/features/storage.js"></script>
+    <script src="../src/features/extractors.js"></script>
+    <script src="../src/features/fixChat.js"></script>
+    <script src="../src/features/createTask.js"></script>
     <script src="../src/panel.js"></script>
 </body>
 </html>

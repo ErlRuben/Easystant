@@ -10,9 +10,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/rencontech/easystant"
+    "url": "https://github.com/ErlRuben/Easystant"
   },
-  "author": "Rencon Tech",
+  "author": "Recon Tech",
   "license": "MIT",
   "devDependencies": {},
   "dependencies": {}

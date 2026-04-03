@@ -1,5 +1,5 @@
 ## Easystant
-By Rencon Tech
+By Recon Tech
 Easystant is a Chrome extension designed to assist users across any website by improving communication, simplifying task creation, and enhancing overall workflow using AI.
 
 ## Core Problems

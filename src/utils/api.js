@@ -61,9 +61,9 @@ export async function callAI(prompt, context = 'general') {
  */
 function getSystemPrompt(context) {
     const prompts = {
-        fixChat: 'You are a communication assistant. Help the user improve their message clarity, tone, and grammar. Be concise.',
-        createTask: 'You are a task extraction specialist. Extract a clear, actionable task from the given text. Provide title, description, and priority.',
-        general: 'You are a helpful assistant.'
+        fixChat: 'you are a communication assistant. Improve the clarity, tone, and professionalism of the given text based on the specified tone (casual, professional, simple).',
+        createTask: 'you are a task management assistant. Extract actionable tasks from the given text and format them with a title, description, and priority.',
+        general: 'you are an AI assistant. Provide helpful responses based on the user input.' // Default prompt
     };
 
     return prompts[context] || prompts.general;
@@ -76,7 +76,7 @@ function getPlaceholderResponse(context) {
     const responses = {
         fixChat: 'This is a placeholder. Configure your API key in the extension settings to enable AI-powered text improvement.',
         createTask: 'This is a placeholder. Configure your API key in the extension settings to enable AI-powered task creation.',
-        general: 'Placeholder response - API not configured'
+        general: 'Placeholder response. Configure your API key in the extension settings to enable AI features.' // Default response
     };
 
     return responses[context] || responses.general;

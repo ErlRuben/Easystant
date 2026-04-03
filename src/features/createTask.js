@@ -1,91 +1,112 @@
-// Create Task Feature - Generate tasks from text
+// api/create-task.js - Vercel serverless function for Create Task feature
 
-/**
- * Create Task: Extract actionable tasks from text
- * @param {string} text - The text to extract task from
- * @returns {Promise<string>} - Formatted task information
- */
-export async function createTask(text) {
-    try {
-        const task = generateTask(text);
-        return formatTask(task);
-    } catch (error) {
-        throw new Error('Failed to create task: ' + error.message);
+export default async function handler(req, res) {
+    // Only allow POST
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
     }
+
+    const { text, taskType } = req.body;
+
+    // Validate inputs
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ error: 'Missing or invalid text' });
+    }
+    if (!taskType || !['bug', 'support', 'general'].includes(taskType)) {
+        return res.status(400).json({ error: 'Invalid taskType. Must be bug, support, or general' });
+    }
+
+    const prompts = {
+        bug: `You are a software QA engineer. Extract a structured bug report from the following text.
+
+Return ONLY a valid JSON object with exactly these fields:
+{
+  "title": "concise bug title under 75 chars, prefixed with [BUG] or [REGRESSION] if applicable",
+  "description": "clear 2-3 sentence description of the issue",
+  "coreIssue": "the specific feature or system affected",
+  "issueType": "bug or regression",
+  "stepsToReproduce": "numbered steps as a single string separated by newlines",
+  "expectedResult": "what should happen",
+  "actualResult": "what actually happens",
+  "priority": "HIGH, MEDIUM, or NORMAL"
 }
 
-/**
- * Generate task details from text
- * Placeholder - will be replaced with AI-powered extraction
- */
-function generateTask(text) {
-    // Extract first sentence as title
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim());
-    const title = sentences[0]?.trim() || 'New Task';
-    
-    // Use full text as description
-    const description = text.trim();
-    
-    // Suggest priority (placeholder logic)
-    const priority = suggestPriority(text);
-    
-    return {
-        title: cleanTitle(title),
-        description: description,
-        priority: priority,
-        createdAt: new Date().toLocaleString()
+Text to analyze:
+${text.trim()}`,
+
+        support: `You are a customer support specialist. Extract a structured support ticket from the following text.
+
+Return ONLY a valid JSON object with exactly these fields:
+{
+  "title": "concise issue title under 75 chars",
+  "category": "one of: Technical Error, Performance Issue, Data Issue, Feature Issue, Regression - Feature Broken",
+  "details": "2-3 sentence summary of the issue",
+  "impact": "who or what is affected",
+  "urgency": "Normal, High, or Critical/Urgent",
+  "actions": "required actions as bullet points separated by newlines starting with *",
+  "priority": "HIGH, MEDIUM, or NORMAL"
+}
+
+Text to analyze:
+${text.trim()}`,
+
+        general: `You are a project manager. Extract a structured task from the following text.
+
+Return ONLY a valid JSON object with exactly these fields:
+{
+  "title": "concise task title under 75 chars",
+  "description": "2-3 sentence description of what needs to be done",
+  "details": "specific requirements or details needed to complete the task",
+  "deadline": "extracted deadline if mentioned, or null",
+  "priority": "HIGH, MEDIUM, or NORMAL"
+}
+
+Text to analyze:
+${text.trim()}`
     };
-}
 
-/**
- * Clean and shorten title
- */
-function cleanTitle(title) {
-    // Remove leading/trailing whitespace
-    let clean = title.trim();
-    
-    // Capitalize first letter
-    clean = clean.charAt(0).toUpperCase() + clean.slice(1);
-    
-    // Limit to 60 characters
-    if (clean.length > 60) {
-        clean = clean.substring(0, 57) + '...';
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type':      'application/json',
+                'x-api-key':         process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model:      'claude-haiku-4-5-20251001',
+                max_tokens: 1000,
+                messages: [{
+                    role:    'user',
+                    content: prompts[taskType]
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Anthropic API error:', error);
+            return res.status(502).json({ error: 'AI service error. Please try again.' });
+        }
+
+        const data = await response.json();
+        const rawText = data.content[0].text.trim();
+
+        // Parse JSON response from Claude
+        let parsed;
+        try {
+            // Strip markdown code fences if Claude added them
+            const clean = rawText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+            parsed = JSON.parse(clean);
+        } catch (parseError) {
+            console.error('Failed to parse Claude response:', rawText);
+            return res.status(502).json({ error: 'Failed to parse AI response. Please try again.' });
+        }
+
+        return res.status(200).json({ result: parsed, taskType });
+
+    } catch (error) {
+        console.error('create-task handler error:', error);
+        return res.status(500).json({ error: 'Internal server error. Please try again.' });
     }
-    
-    return clean;
-}
-
-/**
- * Suggest priority based on keywords
- */
-function suggestPriority(text) {
-    const urgent = /urgent|asap|critical|immediately|emergency/i;
-    const important = /important|essential|must|should|required/i;
-    
-    if (urgent.test(text)) {
-        return 'HIGH';
-    } else if (important.test(text)) {
-        return 'MEDIUM';
-    }
-    return 'NORMAL';
-}
-
-/**
- * Format task for display
- */
-function formatTask(task) {
-    return `
-✓ NEW TASK
-
-Title:
-${task.title}
-
-Description:
-${task.description}
-
-Priority: ${task.priority}
-Created: ${task.createdAt}
-
-Ready to copy and add to your task manager!
-    `.trim();
 }
