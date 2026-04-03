@@ -26,8 +26,8 @@ async function createTask(text, taskType = 'general') {
         return formatTask(data.result, taskType);
 
     } catch (error) {
-        // Fallback to local extraction if backend is unavailable
         console.warn('Backend unavailable, using local fallback:', error.message);
+        console.warn('Full error:', error);
         return createTaskLocally(text, taskType);
     }
 }

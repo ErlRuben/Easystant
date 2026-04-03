@@ -23,9 +23,26 @@ export default async function handler(req, res) {
     }
 
     const toneInstructions = {
-        casual:       'friendly, informal, and conversational. Use contractions, keep it relaxed but clear.',
-        professional: 'formal, polished, and business-appropriate. Use proper grammar, avoid slang and contractions.',
-        simple:       'clear, plain, and easy to understand. Use short sentences and common words. Avoid jargon.'
+        casual: `friendly, informal, and conversational. 
+Rules:
+- Keep ALL the original meaning, context, and key details intact
+- Use casual language, contractions, and a relaxed tone
+- Do not shorten or summarize — rewrite the full message
+- Sound like a real person texting a colleague`,
+
+        professional: `formal, polished, and business-appropriate.
+Rules:
+- Keep ALL the original meaning, context, and key details intact
+- Use proper grammar, full words instead of abbreviations, no slang
+- Do not shorten or summarize — rewrite the full message
+- Sound like a professional email or workplace message`,
+
+        simple: `clear, plain, and easy to understand.
+Rules:
+- Keep ALL the original meaning, context, and key details intact
+- Use short sentences and common everyday words
+- Avoid jargon, technical terms, and complex vocabulary
+- Do not shorten or summarize — rewrite the full message`
     };
 
     try {
@@ -39,6 +56,7 @@ export default async function handler(req, res) {
                         parts: [{
                             text: `You are a communication assistant. Rewrite the following message to be ${toneInstructions[tone]}
 
+IMPORTANT: Preserve all details from the original. Do not cut anything out.
 Return ONLY the rewritten message. No explanations, no quotes, no preamble.
 
 Message to rewrite:
@@ -46,8 +64,8 @@ ${text.trim()}`
                         }]
                     }],
                     generationConfig: {
-                        maxOutputTokens: 500,
-                        temperature: 0.7
+                        maxOutputTokens: 2048,
+                        temperature: 0.4
                     }
                 })
             }
