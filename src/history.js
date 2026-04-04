@@ -1,9 +1,7 @@
 // history.js - History page logic
 
-const BACKEND_URL = 'https://easystant.vercel.app';
 
-let currentTab = 'fixChat';
-
+let currentTab = 'fixChat'
 document.addEventListener('DOMContentLoaded', () => {
     const tabs        = document.querySelectorAll('.history-tab');
     const historyList = document.getElementById('history-list');
@@ -21,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Back button ---
     backBtn.addEventListener('click', () => {
-        window.location.replace(chrome.runtime.getURL('public/panel.html'));
+        window.location.href = '../public/panel.html';
     });
 
     // --- Load initial tab ---

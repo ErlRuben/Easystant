@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- History button ---
     historyBtn.addEventListener('click', () => {
-        window.location.replace(chrome.runtime.getURL('public/history.html'));
+        window.location.href = 'history.html';
     });
 
     // --- Feature execution ---
